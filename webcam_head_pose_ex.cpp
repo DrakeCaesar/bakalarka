@@ -37,6 +37,7 @@
 #include <vector>
 #include <iostream>
 #include <thread>
+#include <opencv2\imgproc.hpp>
 #pragma comment (lib, "Normaliz.lib")
 #pragma comment (lib, "Ws2_32.lib")
 #pragma comment (lib, "Wldap32.lib")
@@ -46,18 +47,21 @@
 
 using namespace dlib;
 using namespace cv;
+
 using namespace std;
 
 
 
-cv::VideoCapture cap;
-
 
 bool stop = false;
 const std::string videoStreamAddress = "http://192.168.1.20:8080/video";
-void task1(cv::VideoCapture cap, cv::Mat image)
+void task1(cv::VideoCapture cap, cv::Mat * image)
 {
-    while (cap.read(image));
+    while (true) {
+        cap >> *image;
+        if ((*image).empty())
+            cap.set(CAP_PROP_POS_FRAMES, 0);
+    }
 
 }
 
@@ -65,6 +69,7 @@ int main()
 {
     cv::VideoCapture cap;
     cv::Mat image;
+
     if (!cap.open(videoStreamAddress)) {
         std::cout << "Error opening video stream or file" << std::endl;
         return -1;
@@ -73,26 +78,32 @@ int main()
     frontal_face_detector detector = get_frontal_face_detector();
     shape_predictor pose_model;
     deserialize("shape_predictor_68_face_landmarks.dat") >> pose_model;
-    std::thread t1(task1, cap, image);
+    std::thread t1(task1,cap,&image);
     Sleep(2000);
     while (!win.is_closed())
     {
 
         //cap.read(image);
 
-        /*
+        
         cv_image<bgr_pixel> cimg(image);
-        std::vector<rectangle> faces = detector(cimg);
+
+        //rotate(image, image, cv::ROTATE_90_COUNTERCLOCKWISE);
+        //cv::resize(image, image, cv::Size(), 0.5, 0.5);
+
+        std::vector<dlib::rectangle> faces = detector(cimg);
         std::vector<full_object_detection> shapes;
+
         for (unsigned long i = 0; i < faces.size(); ++i)
             shapes.push_back(pose_model(cimg, faces[i]));
         win.clear_overlay();
         win.set_image(cimg);
         win.add_overlay(render_face_detections(shapes));
-        */
-        cv_image<bgr_pixel> cimg(image);
-        win.set_image(cimg);
+        //if (faces.size() == 2)
+        //    Sleep(100000);
+        //cv_image<bgr_pixel> cimg(image);
+        //win.set_image(cimg);
     }
-    t1.join();
+    //t1.join();
 }
 
