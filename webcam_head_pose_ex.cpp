@@ -55,8 +55,13 @@ using namespace std;
 
 bool stop = false;
 const std::string videoStreamAddress = "http://192.168.1.20:8080/video";
-void task1(cv::VideoCapture cap, cv::Mat * image)
+int capture(cv::Mat * image)
 {
+    cv::VideoCapture cap;
+    if (!cap.open(videoStreamAddress)) {
+        std::cout << "Error opening video stream or file" << std::endl;
+        return -1;
+    }
     while (true) {
         cap >> *image;
         if ((*image).empty())
@@ -65,28 +70,19 @@ void task1(cv::VideoCapture cap, cv::Mat * image)
 
 }
 
-int main()
+void detectface(cv::Mat* image)
 {
-    cv::VideoCapture cap;
-    cv::Mat image;
-
-    if (!cap.open(videoStreamAddress)) {
-        std::cout << "Error opening video stream or file" << std::endl;
-        return -1;
-    }
-    image_window win;
     frontal_face_detector detector = get_frontal_face_detector();
     shape_predictor pose_model;
     deserialize("shape_predictor_68_face_landmarks.dat") >> pose_model;
-    std::thread t1(task1,cap,&image);
-    Sleep(2000);
-    while (!win.is_closed())
-    {
+    image_window win;
+    while (!win.is_closed()) {
 
-        //cap.read(image);
+        cv::Mat dst;
+        cv::resize(* image, dst, cv::Size((*image).cols/4,(*image).rows/4));
+        cv::flip(dst, dst, +1);
 
-        
-        cv_image<bgr_pixel> cimg(image);
+        cv_image<bgr_pixel> cimg(dst);
 
         //rotate(image, image, cv::ROTATE_90_COUNTERCLOCKWISE);
         //cv::resize(image, image, cv::Size(), 0.5, 0.5);
@@ -99,10 +95,35 @@ int main()
         win.clear_overlay();
         win.set_image(cimg);
         win.add_overlay(render_face_detections(shapes));
-        //if (faces.size() == 2)
-        //    Sleep(100000);
-        //cv_image<bgr_pixel> cimg(image);
-        //win.set_image(cimg);
+    }
+
+}
+void justrender(cv::Mat* image)
+{
+    image_window win;
+    while (!win.is_closed()) {
+
+        cv::Mat dst;
+        cv::resize(*image, dst, cv::Size((*image).cols / 4, (*image).rows / 4));
+        cv::flip(dst, dst, +1);
+        cv_image<bgr_pixel> cimg(dst);
+        win.set_image(cimg);
+    }
+
+}
+
+int main()
+{   
+    cv::Mat image;
+    std::thread capture(capture,&image);
+    Sleep(2000);
+    std::thread detectface(detectface, &image);
+    std::thread justrender(justrender, &image);
+
+
+    while (true)
+    {
+        Sleep(1000);
     }
     //t1.join();
 }
