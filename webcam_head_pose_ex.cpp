@@ -69,14 +69,23 @@ int capture(cv::Mat * image)
     }
 
 }
-
+int min(int x, int y) {
+    if (x < y)
+        return x;
+    return y;
+}
+int max(int x, int y) {
+    if (x > y)
+        return x;
+    return y;
+}
 void detectface(cv::Mat* image)
 {
     frontal_face_detector detector = get_frontal_face_detector();
     shape_predictor pose_model;
     deserialize("shape_predictor_68_face_landmarks.dat") >> pose_model;
     image_window win;
-    while (!win.is_closed()) {
+    while (!(*image).empty() && !win.is_closed()) {
 
         cv::Mat dst;
         cv::resize(* image, dst, cv::Size((*image).cols/4,(*image).rows/4));
@@ -89,19 +98,70 @@ void detectface(cv::Mat* image)
 
         std::vector<dlib::rectangle> faces = detector(cimg);
         std::vector<full_object_detection> shapes;
+        cv::Rect rect[2];
+        for (unsigned long i = 0; i < faces.size(); ++i)
+        {
+            shapes.push_back(pose_model(cimg, faces[i]));
+            for (int j = 0; j <= 1; j++) {
+                int x1 = INT_MAX, y1 = INT_MAX;
+                int x2 = 0, y2 = 0;
+                for (int k = 0; k < 6; k++) {
+                    x1 = min(x1, shapes[i].part(36 + j*6 + k).x());
+                    x2 = max(x2, shapes[i].part(36 + j*6 + k).x());
+                    y1 = min(y1, shapes[i].part(36 + j*6 + k).y());
+                    y2 = max(y2, shapes[i].part(36 + j*6 + k).y());
+                }
+                rect[j] = cv::Rect(x1, y1 -10, x2 - x1, y2 - y1 + 20);
+                cv::rectangle(dst, rect[j], cv::Scalar(0, 255, 0));
+            }
+        }
+        //win.clear_overlay();
+        win.set_image(cimg);
+        if (faces.size() > 0)
+        Sleep(5000);
+        //win.add_overlay(render_face_detections(shapes));
+    }
+
+}
+
+
+void detectfaceresize(cv::Mat* image)
+{
+    frontal_face_detector detector = get_frontal_face_detector();
+    shape_predictor pose_model;
+    deserialize("shape_predictor_68_face_landmarks.dat") >> pose_model;
+    image_window win;
+    while (!(*image).empty() && !win.is_closed()) {
+
+        cv::Mat dst;
+        cv::flip(*image, dst, +1);
+
+        cv_image<bgr_pixel> cimg(dst);
+
+        //rotate(image, image, cv::ROTATE_90_COUNTERCLOCKWISE);
+        //cv::resize(image, image, cv::Size(), 0.5, 0.5);
+
+        std::vector<dlib::rectangle> faces = detector(cimg);
+        std::vector<full_object_detection> shapes;
 
         for (unsigned long i = 0; i < faces.size(); ++i)
             shapes.push_back(pose_model(cimg, faces[i]));
+
+
+        
+
+        //cv::resize(dst, dst, cv::Size((*image).cols / 4, (*image).rows / 4));
         win.clear_overlay();
         win.set_image(cimg);
         win.add_overlay(render_face_detections(shapes));
+
     }
 
 }
 void justrender(cv::Mat* image)
 {
     image_window win;
-    while (!win.is_closed()) {
+    while (!(*image).empty() && !win.is_closed()) {
 
         cv::Mat dst;
         cv::resize(*image, dst, cv::Size((*image).cols / 4, (*image).rows / 4));
@@ -118,7 +178,9 @@ int main()
     std::thread capture(capture,&image);
     Sleep(2000);
     std::thread detectface(detectface, &image);
-    std::thread justrender(justrender, &image);
+    //std::thread detectfaceresize(detectfaceresize, &image);
+
+    //std::thread justrender(justrender, &image);
 
 
     while (true)
