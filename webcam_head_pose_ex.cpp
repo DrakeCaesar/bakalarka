@@ -50,51 +50,38 @@ using namespace dlib;
 using namespace cv;
 using namespace std;
 
-int captureold(cv::Mat * image)
-{
-    const int targetFramerate = 32;
-    const int targetFrameTime = 1000000 / targetFramerate;
-    const std::string videoStreamAddress = "http://192.168.1.34:8080/video";
-    cv::VideoCapture cap;
-    if (!cap.open(videoStreamAddress)) {
-        std::cout << "Error opening video stream or file" << std::endl;
-        return -1;
-    }
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    while (true) {
-        cap >> *image;
-        if ((*image).empty())
-            cap.set(CAP_PROP_POS_FRAMES, 0);
-        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-        int microsec = std::chrono::duration_cast<std::chrono::microseconds>  (end - begin).count();
-        int sleep = 0;
-        if (1000000 / microsec > targetFramerate) {
-            sleep = targetFrameTime - microsec;
-            std::this_thread::sleep_for(std::chrono::microseconds(sleep));
-        }
-        /*
-        end = std::chrono::steady_clock::now();
-        microsec = std::chrono::duration_cast<std::chrono::microseconds>  (end - begin).count();
-        std::cout << 1000000/microsec << " fps; sleep "<< sleep/1000 << std::endl;
-        */
-        begin = std::chrono::steady_clock::now();
-    }
-}
+
 int capture(cv::Mat* image)
 {
-    const unsigned int targetFramerate = 32;
+    const unsigned int targetFramerate = 30;
     const unsigned int second = 1000000;
     const unsigned int targetFrameTime = second / targetFramerate;
-    const std::string videoStreamAddress = "http://192.168.1.20:8080/video";
+    const std::string videoStreamAddress = "http://192.168.1.17:8080/video";
     cv::VideoCapture cap;
+
+    /*
+        for (int i = 1; i < 255; i++) {
+        std::stringstream buffer;
+        buffer << "http://192.168.1." << +i << ":8080/video";
+        std::string videoStreamAddress = buffer.str();
+        if (cap.open(videoStreamAddress,0)) {
+            std::cout << "Opened video stream at " << videoStreamAddress << std::endl;
+            break;
+        }
+    }
+    */
+    
+    /*
     if (!cap.open(videoStreamAddress)) {
         std::cout << "Error opening video stream or file" << std::endl;
-        return -1;
+        //return -1;
     }
+    */
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     while (true) {
         cv::Mat temp;
-        cap >> temp;
+        temp = imread("media/face.jpg",1);
+        //cap >> temp;
         cv::flip(temp, *image, +1);
         //if ((*image).empty())
         //    cap.set(CAP_PROP_POS_FRAMES, 0);
@@ -116,7 +103,7 @@ int max(int x, int y) {
     return y;
 }
 
-void detectface(cv::Mat* image, cv::Rect rect[])
+void detectface(cv::Mat* image, cv::Rect rect[], RotatedRect* box)
 {
     frontal_face_detector detector = get_frontal_face_detector();
     shape_predictor pose_model;
@@ -147,6 +134,26 @@ void detectface(cv::Mat* image, cv::Rect rect[])
                 cv::rectangle(dst, rect[j], cv::Scalar(0, 255, 0));
             }
         }
+        /*
+        for (int i = 0; i < 2; i++) {
+            if (MAX(box[i].size.width, box.size.height) > MIN(box[i].size.width, box.size.height) * 30)
+                continue;
+
+            ellipse(cimg, box[i], Scalar(0, 0, 255), 1, LINE_AA);
+            ellipse(cimg, box[i].center, box[i].size * 0.5f, box[i].angle, 0, 360, Scalar(0, 255, 255), 1, LINE_AA);
+            Point2f vtx[4];
+            box.points(vtx);
+            for (int j = 0; j < 4; j++)
+                cv::line(cimg, vtx[j], vtx[(j + 1) % 4], Scalar(0, 255, 0), 1, LINE_AA);
+        }
+        
+        */
+
+
+
+
+
+
         win.set_image(cimg);
         //cout << rect[0];
     }
@@ -154,206 +161,217 @@ void detectface(cv::Mat* image, cv::Rect rect[])
 void normalize(cv::Rect* rect, int x, int y) {
     if ((*rect).x < 0)
         (*rect).x = 0;
-    else if ((*rect).x + (*rect).width > x) {
+    else if ((*rect).x + (*rect).width >= x) {
         (*rect).x = x;
         (*rect).width = rect->height = 0;
     }
     if ((*rect).y < 0)
         (*rect).y = 0;
-    else if ((*rect).y + (*rect).width > y) {
+    else if ((*rect).y + (*rect).width >= y) {
         (*rect).y = y;
         (*rect).width = rect->height = 0;
     }
 }
 
+int sliderPos = 50;// 80;
+int alpha = 40; /*< Simple contrast control Enter the alpha value [1.0-3.0]: 2.2 */
+int beta = 0;       /*< Simple brightness control Enter the beta value [0-100]: 50 */
 
-void detectEye(cv::Mat * image, cv::Rect * rect){
+bool compareContourAreas(std::vector<cv::Point> contour1, std::vector<cv::Point> contour2) {
+    double i = fabs(contourArea(cv::Mat(contour1)));
+    double j = fabs(contourArea(cv::Mat(contour2)));
+    return (i < j);
+}
+
+void detectEye(cv::Mat * image, cv::Rect * rect, RotatedRect * boxpointer){
     image_window win;
-    int factor = 4;
+    int factor1 = 4;
+    int factor2 = 2;
     cv::Rect scaledRect;
     image_window win1;
-    //namedWindow("My Window", 1);
-    int sliderPos = 150;
-    //createTrackbar("threshold", "My Window", &sliderPos, 255);
     while (true) {
     
-       // Sleep(10);
         if ((*rect).width == 0)
             continue;
-        scaledRect.x = (*rect).x * factor;
-        scaledRect.y = (*rect).y * factor;
-        scaledRect.width = (*rect).width * factor;
-        scaledRect.height = (*rect).height * factor;
-        normalize(&scaledRect, (*image).cols, (*image).rows);
-        cv::Mat croppedImage = (*image)(scaledRect);
-        cv_image<bgr_pixel> cimg(croppedImage);
-        win.set_image(cimg);
-        //imshow("My Window", croppedImage);
+        scaledRect.x = (*rect).x * factor1 * factor2;
+        scaledRect.y = (*rect).y * factor1 * factor2;
+        scaledRect.width = (*rect).width * factor1 * factor2;
+        scaledRect.height = (*rect).height * factor1 * factor2;
+        cv::Mat croppedImage = (*image).clone();
+        cv::resize(croppedImage, croppedImage, cv::Size((*image).cols * factor2, (*image).rows * factor2));
+        normalize(&scaledRect, (croppedImage).cols, (croppedImage).rows);
 
-        //createTrackbar("threshold", "result", &sliderPos, 255, croppedImage);
-        //croppedImage = imread("media/circles.png");
+        croppedImage = croppedImage(scaledRect).clone();
+        /*
+        scaledRect.height = (*rect).height * factor;
+        cv::Mat croppedImage = (*image)(scaledRect).clone();
+        cv::resize(croppedImage, croppedImage, cv::Size((*image).cols * 4, (*image).rows * 4));
+        normalize(&scaledRect, (croppedImage).cols, (croppedImage).rows);
+        croppedImage = (croppedImage)(scaledRect).clone();
+        */
+        
+        /*
+        for (int y = 0; y < croppedImage.rows; y++) {
+            for (int x = 0; x < croppedImage.cols; x++) {
+                for (int c = 0; c < croppedImage.channels(); c++) {
+                    croppedImage.at<Vec3b>(y, x)[c] = saturate_cast<uchar>(.1 * alpha * croppedImage.at<Vec3b>(y, x)[c] + beta - 100);
+                }
+            }
+        }
+        */
+        cv_image<bgr_pixel> cimg(croppedImage);
+
+        win.set_image(cimg);
         cvtColor(croppedImage, croppedImage, COLOR_BGR2GRAY);
 
+        medianBlur(croppedImage, croppedImage, 5);
+
+        equalizeHist(croppedImage, croppedImage);
+
+
+
+  
+
+
+
+        //Mat render = croppedImage.clone();
+        inRange(croppedImage, 0, sliderPos, croppedImage);
+
+        auto kernel = getStructuringElement(MORPH_RECT, Size(3, 3));
+        //distanceTransform(croppedImage,croppedImage, DIST_L2, DIST_MASK_PRECISE);
+        Mat render = croppedImage.clone();
+
+        dilate(croppedImage, kernel, 2);
+        erode(croppedImage, kernel, 3);
+        //morphologyEx(croppedImage, croppedImage, MORPH_CLOSE, getStructuringElement(MORPH_ELLIPSE, Size(7, 7)));
+
+        //morphologyEx(croppedImage, croppedImage, MORPH_OPEN, getStructuringElement(MORPH_ELLIPSE, Size(25, 25)));
         std::vector<std::vector<Point> > contours;
-        //Mat bimage = croppedImage;
-        Mat bimage = croppedImage >= sliderPos;
-        findContours(bimage, contours, RETR_LIST, CHAIN_APPROX_NONE);
+        //Mat bimage = croppedImage >= sliderPos;
+        /*
+        for (int x = 4; x < croppedImage.cols-5; x++) {
+            bool black = true;
+            int white = 0;
+            //cout << +croppedImage.channels() << endl;
+            if (croppedImage.channels() != 0)
+                for (int y = croppedImage.rows -5 ; y >=4 ; y--) {
+                    
+                    
+                    //if (croppedImage.at<Vec3b>(y, x)[0] != 0)
+                    //    croppedImage.at<Vec3b>(y, x)[0] = 255;
+                    
+                    
+                    //if (croppedImage.at<Vec3b>(y, x)[0] != 255 && croppedImage.at<Vec3b>(y, x)[0] != 0)
+                        //cout << +croppedImage.at<Vec3b>(y, x)[0] << endl;
+                    if (black) {
+                        if (croppedImage.at<Vec3b>(y, x)[0] == 255) {
+                            black = false;
+                            white = 1;
+                        }
+                    }
+                    else if (white > 0) {
+                        if (croppedImage.at<Vec3b>(y, x)[0] == 0) {
+                            white--;
 
+                        }
+                    }
+                    else
+                        croppedImage.at<Vec3b>(y, x)[0] = 0;
+                    
+                }
+        }
+        */
+        Mat bimage = croppedImage.clone();
+        findContours(bimage, contours, RETR_TREE, CHAIN_APPROX_NONE);
         Mat cimage = Mat::zeros(bimage.size(), CV_8UC3);
+        // cimage = croppedImage.clone();
 
-        for (size_t i = 0; i < contours.size(); i++)
-        {
-            size_t count = contours[i].size();
-            if (count < 6)
-                continue;
+        cvtColor(render, render, COLOR_GRAY2BGR);
+        int i = contours.size() - 1;
+        if (i ==  -1)
+            continue;
+        size_t count = contours[i].size();
+        if (count < 6)
+            continue;
+        std::sort(contours.begin(), contours.end(), compareContourAreas);
+        std::vector<cv::Point> biggestContour = contours[contours.size() - 1];
 
-            Mat pointsf;
-            Mat(contours[i]).convertTo(pointsf, CV_32F);
-            RotatedRect box = fitEllipse(pointsf);
 
-            if (MAX(box.size.width, box.size.height) > MIN(box.size.width, box.size.height) * 30)
-                continue;
-            drawContours(cimage, contours, (int)i, Scalar::all(255), 1, 8);
+        Mat pointsf;
+        Mat(contours[i]).convertTo(pointsf, CV_32F);
 
-            ellipse(cimage, box, Scalar(0, 0, 255), 1, LINE_AA);
-            ellipse(cimage, box.center, box.size * 0.5f, box.angle, 0, 360, Scalar(0, 255, 255), 1, LINE_AA);
-            Point2f vtx[4];
-            box.points(vtx);
-            for (int j = 0; j < 4; j++)
-                cv::line(cimage, vtx[j], vtx[(j + 1) % 4], Scalar(0, 255, 0), 1, LINE_AA);
-        }
+
+        //RotatedRect box = minAreaRect(Mat(contours[i]));
+        
 
 
 
-        cv_image<bgr_pixel> cimg1(cimage);
+        RotatedRect box = fitEllipse(pointsf);
+        *boxpointer = box;
+        if (MAX(box.size.width, box.size.height) > MIN(box.size.width, box.size.height) * 30)
+            continue;
+        drawContours(render, contours, (int)i, Scalar::all(255), 1, 8);
+
+        ellipse(render, box, Scalar(0, 0, 255), 1, LINE_AA);
+        ellipse(render, box.center, box.size * 0.5f, box.angle, 0, 360, Scalar(0, 255, 255), 1, LINE_AA);
+        Point2f vtx[4];
+        box.points(vtx);
+        for (int j = 0; j < 4; j++)
+            cv::line(render, vtx[j], vtx[(j + 1) % 4], Scalar(0, 255, 0), 1, LINE_AA);
+        
+        //
+        //cv_image<bgr_pixel> cimg1(cimage);
+        
+        cv_image<bgr_pixel> cimg1(render);
         win1.set_image(cimg1);
 
-
-
-
-
-        //Sleep(10);
-        /*
-        Mat src = croppedImage;
-        Mat src_gray;
-
-        src = imread("media/circles.png", 1);
-
-        //Ptr<FeatureDetector> blobsDetector = FeatureDetector::create("SimpleBlob");
-            // Read image
-
-        Mat im = imread("media/circles.png", IMREAD_GRAYSCALE);
-        im = croppedImage.clone();
-
-        // Setup SimpleBlobDetector parameters.
-        SimpleBlobDetector::Params params;
-
-        // Change thresholds
-        params.minThreshold = 10;
-        params.maxThreshold = 200;
-
-        //Filter by Area.
-        params.filterByArea = true;
-        params.minArea = 150;
-
-        // Filter by Circularity
-        params.filterByCircularity = false;
-        params.minCircularity = 0.1;
-
-        // Filter by Convexity
-        params.filterByConvexity = false;
-        params.minConvexity = 0.87;
-
-        // Filter by Inertia
-        params.filterByInertia = false;
-        params.minInertiaRatio = 0.01;
-
-        // Storage for blobs
-        std::vector<KeyPoint> keypoints;
-
-
-        // Set up detector with params
-        Ptr<SimpleBlobDetector> detector = SimpleBlobDetector::create(params);
-
-        // Detect blobs
-        detector->detect(im, keypoints);
-
-
-        // Draw detected blobs as red circles.
-        // DrawMatchesFlags::DRAW_RICH_KEYPOINTS flag ensures
-        // the size of the circle corresponds to the size of blob
-
-        Mat im_with_keypoints;
-        drawKeypoints(im, keypoints, im_with_keypoints, Scalar(255, 0, 255), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-        //for (size_t i = 0; i < keypoints.size(); ++i)
-        //    circle(im_with_keypoints, keypoints[i].pt, 4, Scalar(255, 0, 255), -1);
-
-        // Show blobs
-        cv_image<bgr_pixel> cimg1(im_with_keypoints);
-        win1.set_image(cimg1);
-       */
-        /*
-        Mat drawImage = src.clone();
-        for (size_t i = 0; i < keypoints.size(); ++i)
-            circle(drawImage, keypoints[i].pt, 4, Scalar(255, 0, 255), -1);
-        cv_image<bgr_pixel> cimg1(drawImage);
-        win1.set_image(cimg1);
-        */
-
-
-
-
-
-        /*/
-        /// Convert it to gray
-        cvtColor(src, src_gray, COLOR_BGR2GRAY);
-
-        /// Reduce the noise so we avoid false circle detection
-        GaussianBlur(src_gray, src_gray, Size(9, 9), 2, 2);
-
-        std::vector<Vec3f> circles;
-
-        /// Apply the Hough Transform to find the circles
-        HoughCircles(src_gray, circles, HOUGH_GRADIENT, 1, src_gray.rows / 8, 200, 100, 0, 0);
-
-        /// Draw the circles detected
-        for (size_t i = 0; i < circles.size(); i++)
-        {
-            Point center(cvRound(circles[i][0]), cvRound(circles[i][1]));
-            int radius = cvRound(circles[i][2]);
-            // circle center
-            circle(src, center, 3, Scalar(0, 255, 0), -1, 8, 0);
-            // circle outline
-            circle(src, center, radius, Scalar(0, 0, 255), 3, 8, 0);
-        }
-
-        /// Show your results
-        //Sleep(1000);
-
-        cv_image<bgr_pixel> cimg1(src);
-        win1.set_image(cimg1);
-        */
     }
+}
+
+
+cv::Mat thresh(cv::Mat * image, int rmin, int rmax) {
+    cv::Mat I = (*image).clone();
+    int scale = 1;
+    rmin = rmin * scale;
+    rmax = rmax * scale;
+    cv::resize(I, I, cv::Size((*image).cols * scale, (*image).rows * scale));
+    return I;
 }
 
 int main()
 {   
+    
     cv::Mat image;
     cv::Rect rect[2];
+    RotatedRect box[2];
+
+    /*
+    image = imread("media/eye.jpg, 1");
+    cv::Mat out = thresh(&image,30,50);
+    namedWindow("out", WINDOW_AUTOSIZE);
+    while (true) {
+        cv::waitKey(0);
+    }
+    */
+
     std::thread capture(capture,&image);
     Sleep(2000);
-    std::thread detectface(detectface, &image ,rect);
+    std::thread detectface(detectface, &image ,rect,box);
     Sleep(1000);
-    //std::thread detectEyeLeft(detectEye, &image, rect+0);
-    //Sleep(1000);
-    std::thread detectEyeRight(detectEye, &image, rect+1);
+    std::thread detectEyeLeft(detectEye, &image, rect+0, box+0);
     Sleep(1000);
-    while (true) {
-        Sleep(1000);
-    }
-    //std::thread detectfaceresize(detectfaceresize, &image);
-    //std::thread justrender(justrender, &image);
+    std::thread detectEyeRight(detectEye, &image, rect+1, box+1);
+    Sleep(1000);
 
-    
+
+    Mat frame = imread("media/circles.png");
+    namedWindow("frame", WINDOW_AUTOSIZE);
+
+    createTrackbar("threshold", "frame", &sliderPos, 255);
+    createTrackbar("alpha", "frame", &alpha, 100);
+    createTrackbar("beta", "frame", &beta, 200);
+    while (true) {
+        cv::waitKey(0);
+    }
 }
 
