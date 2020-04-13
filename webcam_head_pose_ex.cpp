@@ -44,7 +44,7 @@
 #pragma comment (lib, "Ws2_32.lib")
 #pragma comment (lib, "Wldap32.lib")
 #pragma comment (lib, "Crypt32.lib")
-#pragma comment (lib, "advapi32.lib")
+#pragma comment (lib, "advapi32.lib") 
 
 using namespace dlib;
 using namespace cv;
@@ -133,7 +133,9 @@ void detectface(cv::Mat* image, cv::Rect rect[], RotatedRect* box)
                 
                 cv::rectangle(dst, rect[j], cv::Scalar(0, 255, 0));
             }
+            win.add_overlay(render_face_detections(shapes));
         }
+
         /*
         for (int i = 0; i < 2; i++) {
             if (MAX(box[i].size.width, box.size.height) > MIN(box[i].size.width, box.size.height) * 30)
@@ -148,9 +150,6 @@ void detectface(cv::Mat* image, cv::Rect rect[], RotatedRect* box)
         }
         
         */
-
-
-
 
 
 
@@ -337,6 +336,138 @@ cv::Mat thresh(cv::Mat * image, int rmin, int rmax) {
     cv::resize(I, I, cv::Size((*image).cols * scale, (*image).rows * scale));
     return I;
 }
+int random(int top) {
+    return (std::rand() % top - top)*2;
+}
+
+void getQuadrangleSubPix_8u32f_CnR(const uchar* src, size_t src_step, Size src_size,
+    float* dst, size_t dst_step, Size win_size,
+    const double* matrix, int cn)
+{
+    int x, y, k;
+    double A11 = matrix[0], A12 = matrix[1], A13 = matrix[2];
+    double A21 = matrix[3], A22 = matrix[4], A23 = matrix[5];
+
+    src_step /= sizeof(src[0]);
+    dst_step /= sizeof(dst[0]);
+
+    for (y = 0; y < win_size.height; y++, dst += dst_step)
+    {
+        double xs = A12 * y + A13;
+        double ys = A22 * y + A23;
+        double xe = A11 * (win_size.width - 1) + A12 * y + A13;
+        double ye = A21 * (win_size.width - 1) + A22 * y + A23;
+
+        if ((unsigned)(cvFloor(xs) - 1) < (unsigned)(src_size.width - 3) &&
+            (unsigned)(cvFloor(ys) - 1) < (unsigned)(src_size.height - 3) &&
+            (unsigned)(cvFloor(xe) - 1) < (unsigned)(src_size.width - 3) &&
+            (unsigned)(cvFloor(ye) - 1) < (unsigned)(src_size.height - 3))
+        {
+            for (x = 0; x < win_size.width; x++)
+            {
+                int ixs = cvFloor(xs);
+                int iys = cvFloor(ys);
+                const uchar* ptr = src + src_step * iys;
+                float a = (float)(xs - ixs), b = (float)(ys - iys), a1 = 1.f - a, b1 = 1.f - b;
+                float w00 = a1 * b1, w01 = a * b1, w10 = a1 * b, w11 = a * b;
+                xs += A11;
+                ys += A21;
+
+                if (cn == 1)
+                {
+                    ptr += ixs;
+                    dst[x] = ptr[0] * w00 + ptr[1] * w01 + ptr[src_step] * w10 + ptr[src_step + 1] * w11;
+                }
+                else if (cn == 3)
+                {
+                    ptr += ixs * 3;
+                    float t0 = ptr[0] * w00 + ptr[3] * w01 + ptr[src_step] * w10 + ptr[src_step + 3] * w11;
+                    float t1 = ptr[1] * w00 + ptr[4] * w01 + ptr[src_step + 1] * w10 + ptr[src_step + 4] * w11;
+                    float t2 = ptr[2] * w00 + ptr[5] * w01 + ptr[src_step + 2] * w10 + ptr[src_step + 5] * w11;
+
+                    dst[x * 3] = t0;
+                    dst[x * 3 + 1] = t1;
+                    dst[x * 3 + 2] = t2;
+                }
+                else
+                {
+                    ptr += ixs * cn;
+                    for (k = 0; k < cn; k++)
+                        dst[x * cn + k] = ptr[k] * w00 + ptr[k + cn] * w01 +
+                        ptr[src_step + k] * w10 + ptr[src_step + k + cn] * w11;
+                }
+            }
+        }
+        else
+        {
+            for (x = 0; x < win_size.width; x++)
+            {
+                int ixs = cvFloor(xs), iys = cvFloor(ys);
+                float a = (float)(xs - ixs), b = (float)(ys - iys), a1 = 1.f - a, b1 = 1.f - b;
+                float w00 = a1 * b1, w01 = a * b1, w10 = a1 * b, w11 = a * b;
+                const uchar* ptr0, * ptr1;
+                xs += A11; ys += A21;
+
+                if ((unsigned)iys < (unsigned)(src_size.height - 1))
+                    ptr0 = src + src_step * iys, ptr1 = ptr0 + src_step;
+                else
+                    ptr0 = ptr1 = src + (iys < 0 ? 0 : src_size.height - 1) * src_step;
+
+                if ((unsigned)ixs < (unsigned)(src_size.width - 1))
+                {
+                    ptr0 += ixs * cn; ptr1 += ixs * cn;
+                    for (k = 0; k < cn; k++)
+                        dst[x * cn + k] = ptr0[k] * w00 + ptr0[k + cn] * w01 + ptr1[k] * w10 + ptr1[k + cn] * w11;
+                }
+                else
+                {
+                    ixs = ixs < 0 ? 0 : src_size.width - 1;
+                    ptr0 += ixs * cn; ptr1 += ixs * cn;
+                    for (k = 0; k < cn; k++)
+                        dst[x * cn + k] = ptr0[k] * b1 + ptr1[k] * b;
+                }
+            }
+        }
+    }
+}
+void myGetQuadrangleSubPix(const Mat& src, Mat& dst, Mat& m)
+{
+    CV_Assert(src.channels() == dst.channels());
+
+    cv::Size win_size = dst.size();
+    double matrix[6];
+    cv::Mat M(2, 3, CV_64F, matrix);
+    m.convertTo(M, CV_64F);
+    double dx = (win_size.width - 1) * 0.5;
+    double dy = (win_size.height - 1) * 0.5;
+    matrix[2] -= matrix[0] * dx + matrix[1] * dy;
+    matrix[5] -= matrix[3] * dx + matrix[4] * dy;
+
+    if (src.depth() == CV_8U && dst.depth() == CV_32F)
+        getQuadrangleSubPix_8u32f_CnR(src.data, src.step, src.size(),
+            (float*)dst.data, dst.step, dst.size(),
+            matrix, src.channels());
+    else
+    {
+        CV_Assert(src.depth() == dst.depth());
+        cv::warpAffine(src, dst, M, dst.size(),
+            cv::INTER_LINEAR + cv::WARP_INVERSE_MAP,
+            cv::BORDER_REPLICATE);
+    }
+}
+void getRotRectImg(cv::RotatedRect rr, Mat& img, Mat& dst)
+{
+    Mat m(2, 3, CV_64FC1);
+    float ang = rr.angle * CV_PI / 180.0;
+    m.at<double>(0, 0) = cos(ang);
+    m.at<double>(1, 0) = sin(ang);
+    m.at<double>(0, 1) = -sin(ang);
+    m.at<double>(1, 1) = cos(ang);
+    m.at<double>(0, 2) = rr.center.x;
+    m.at<double>(1, 2) = rr.center.y;
+    myGetQuadrangleSubPix(img, dst, m);
+}
+
 
 int main()
 {   
@@ -345,14 +476,152 @@ int main()
     cv::Rect rect[2];
     RotatedRect box[2];
 
-    /*
-    image = imread("media/eye.jpg, 1");
-    cv::Mat out = thresh(&image,30,50);
+    
+    image = imread("media/circles.png");
     namedWindow("out", WINDOW_AUTOSIZE);
+
+    cv_image<bgr_pixel> cimg(image);
+
+    cvtColor(image, image, COLOR_BGR2GRAY);
+
+    medianBlur(image, image, 5);
+
+    equalizeHist(image, image);
+    inRange(image, 0, sliderPos, image);
+    threshold(image, image, 100, 255, THRESH_BINARY | THRESH_OTSU);
+    //morphologyEx(image, image, MORPH_CLOSE, getStructuringElement(MORPH_ELLIPSE, Size(25, 25)));
+
+    //distanceTransform(image, image, DIST_L2, 3);
+
+    //normalize(image, image, 0, 1.0, NORM_MINMAX);
+    Mat dst;
+
+
+
+
+
+
+
+    //Mat render = croppedImage.clone();
+
+    auto kernel = getStructuringElement(MORPH_RECT, Size(3, 3));
+
+    //dilate(image, kernel, 2);
+    //erode(image, kernel, 3);
+
+    //morphologyEx(croppedImage, croppedImage, MORPH_OPEN, getStructuringElement(MORPH_ELLIPSE, Size(25, 25)));
+    Mat imagec;
+    cvtColor(image, imagec, COLOR_GRAY2BGR);
+    int rows = imagec.rows;
+    int cols = imagec.cols;
+    //cout << "cols: " << cols << endl;
+    //cout << "rows: " << rows << endl;
+    double ellipseX = imagec.cols / 2;
+    double ellipseY = imagec.rows / 2;
+    double ellipseW = 95;
+    double ellipseH = 145;
+    int ellipseD = 30;
+    while (true) {
+        cvtColor(image, imagec, COLOR_GRAY2BGR);
+        ellipseD++;
+        double ellipseA = 2 * pi * (1.f * ellipseD / 360);
+        //RotatedRect rRect = RotatedRect(Point2f(100+random(20), 100 + random(20)), Size2f(100, 50), 0);
+        
+        RotatedRect rRect = RotatedRect(Point2f(ellipseX, ellipseY), Size2f(ellipseW, ellipseH), ellipseD);
+
+        Mat rotatedImage(rRect.size, CV_32FC3);
+        getRotRectImg(rRect, imagec, rotatedImage);
+        
+        //Rect brect = rRect.boundingRect();
+        //cv::rectangle(imagec, brect, Scalar(255, 0, 0), 2);
+        //ellipse(imagec, rRect.center, rRect.size * 0.5f, rRect.angle, 0, 360, Scalar(0, 255, 255), 1, LINE_AA);
+        int blacks = 0;
+        int whites = 0;
+        int greys = 0;
+        /*
+        for (int j = 0; j < imagec.rows; j++) {
+            for (int i = 0; i < imagec.cols; i++) {
+                double point = pow((cos(ellipseA) * (i - ellipseX) + sin(ellipseA) * (j - ellipseY)) / (ellipseW / 2), 2) +
+                    pow((sin(ellipseA) * (i - ellipseX) - cos(ellipseA) * (j - ellipseY)) / (ellipseH / 2), 2);
+                if (point <= 1 && point > 0.95) {
+                    Vec3b color = imagec.at<Vec3b>(Point(i, j));
+                    Vec3b black = Vec3b(0, 0, 0);
+                    Vec3b white = Vec3b(255, 255, 255);
+
+                    if (color == black) {
+                        imagec.at<Vec3b>(Point(i, j)) = Vec3b(0, 242, 221);
+                        blacks++;
+                    }
+                    else if (color == white) {
+                        imagec.at<Vec3b>(Point(i, j)) = Vec3b(0, 200, 50);
+                        whites++;
+                    }
+                    else{
+                        imagec.at<Vec3b>(Point(i, j)) = Vec3b(255, 0, 0);
+                        greys++;
+                    }
+
+                }
+            }
+        }
+        cout << "whites: " << whites << ", blacks: " << blacks << ", greys: " << greys << endl;
+        */
+        
+        Point2f vertices[4];
+        rRect.points(vertices);
+        for (int i = 0; i < 4; i++)
+            cv::line(imagec, vertices[i], vertices[(i + 1) % 4], Scalar(0, 255, 0), 2);
+
+        ellipse(imagec, rRect, Scalar(0, 0, 255), 1, LINE_AA);
+        
+        imshow("out", imagec);
+        waitKey(1);
+        
+
+        
+        double ellipseX2 = rotatedImage.cols / 2;
+        double ellipseY2 = rotatedImage.rows / 2;
+        double ellipseW2 = rotatedImage.cols;
+        double ellipseH2 = rotatedImage.rows;
+        int ellipseD2 = 0;
+        double ellipseA2 = 2 * pi * (1.f * ellipseD2 / 360);
+        for (int j = 0; j < rotatedImage.rows; j++) {
+            for (int i = 0; i < rotatedImage.cols; i++) {
+                double point = pow((cos(ellipseA2) * (i - ellipseX2) + sin(ellipseA2) * (j - ellipseY2)) / (ellipseW2 / 2), 2) +
+                    pow((sin(ellipseA2) * (i - ellipseX2) - cos(ellipseA2) * (j - ellipseY2)) / (ellipseH2 / 2), 2);
+                if (point <= 1 && point > 0) {
+                    //cout << rotatedImage.at<Vec3f>(Point(i, j));
+                    Vec3f color = rotatedImage.at<Vec3f>(Point(i, j));
+                    Vec3f black = Vec3f(0, 0, 0);
+                    Vec3f white = Vec3f(1, 1, 1);
+
+                    if (color == black) {
+                        rotatedImage.at<Vec3f>(Point(i, j)) = Vec3f(0, 1, 1);
+                        blacks++;
+                    }
+                    else if (color == white) {
+                        rotatedImage.at<Vec3f>(Point(i, j)) = Vec3f(0, 1, 0);
+                        whites++;
+                    }
+                    else {
+                        rotatedImage.at<Vec3f>(Point(i, j)) = Vec3f(1, 0, 0);
+                        greys++;
+                    }
+
+                }
+            }
+        }
+        //cout << "whites: " << whites << ", blacks: " << blacks << ", greys: " << greys << endl;
+        
+        imshow("rotImg", rotatedImage);
+
+
+    }
     while (true) {
         cv::waitKey(0);
     }
-    */
+    
+    
 
     std::thread capture(capture,&image);
     Sleep(2000);
