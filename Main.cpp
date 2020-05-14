@@ -19,6 +19,7 @@ michele.fornaciari@unimore.it
 last update: 23/12/2014
 */
 
+//#include <cv.hpp>
 #include <opencv2\opencv.hpp>
 
 #include "EllipseDetectorYaed.h"
@@ -28,34 +29,6 @@ last update: 23/12/2014
 using namespace std;
 using namespace cv;
 
-
-
-
-//void OnVideo()
-//{
-//	VideoCapture cap(0);
-//	if(!cap.isOpened()) return;
-//
-//	CEllipseDetectorYaed yaed;
-//
-//	Mat1b gray;
-//	while(true)
-//	{	
-//		Mat3b image;
-//		cap >> image;
-//		cvtColor(image, gray, CV_BGR2GRAY);	
-//
-//		vector<CEllipse> ellipses;
-//
-//		//Find Ellipses		
-//		yaed.Detect(gray, ellipses);
-//		yaed.DrawDetectedEllipses(image,ellipses);
-//		imshow("Output", image);
-//
-//			
-//		if(waitKey(10) >= 0) break;
-//	}
-//}
 
 
 // Should be checked
@@ -327,8 +300,8 @@ void OnImage()
 
 
 	// Initialize Detector with selected parameters
-	CEllipseDetectorYaed yaed;
-	yaed.SetParameters(szPreProcessingGaussKernelSize,
+	CEllipseDetectorYaed* yaed = new CEllipseDetectorYaed();
+	yaed->SetParameters(szPreProcessingGaussKernelSize,
 		dPreProcessingGaussSigma,
 		fThPos,
 		fMaxCenterDistance,
@@ -343,9 +316,10 @@ void OnImage()
 
 	// Detect
 	vector<Ellipse> ellsYaed;
-	yaed.Detect(gray.clone(), ellsYaed);
+	Mat1b gray2 = gray.clone();
+	yaed->Detect(gray2, ellsYaed);
 
-	vector<double> times = yaed.GetTimes();
+	vector<double> times = yaed->GetTimes();
 	cout << "--------------------------------" << endl;
 	cout << "Execution Time: " << endl;
 	cout << "Edge Detection: \t" << times[0] << endl;
@@ -355,12 +329,12 @@ void OnImage()
 	cout << "Validation:     \t" << times[4] << endl;
 	cout << "Clustering:     \t" << times[5] << endl;
 	cout << "--------------------------------" << endl;
-	cout << "Total:	         \t" << yaed.GetExecTime() << endl;
+	cout << "Total:	         \t" << yaed->GetExecTime() << endl;
 	cout << "--------------------------------" << endl;
 
 
 	vector<Ellipse> gt;
-	LoadGT(gt, sWorkingDir + "/gt/" + "gt_" + imagename + ".txt", true); // Prasad is in radians
+	LoadGT(gt, "muchtesting.txt", true); // Prasad is in radians
 
 	Mat3b resultImage = image.clone();
 
@@ -372,16 +346,118 @@ void OnImage()
 		ellipse(resultImage, Point(cvRound(e._xc), cvRound(e._yc)), Size(cvRound(e._a), cvRound(e._b)), e._rad*180.0 / CV_PI, 0.0, 360.0, color, 3);
 	}
 
-	yaed.DrawDetectedEllipses(resultImage, ellsYaed);
+	yaed->DrawDetectedEllipses(resultImage, ellsYaed);
 
 
 	Mat3b res = image.clone();
 
 	Evaluate(gt, ellsYaed, fThScoreScore, res);
 
-
-	imshow("Yaed", resultImage);
+	// Show the image in a scalable window.
+	namedWindow("Annotated Image", WINDOW_NORMAL);
+	imshow("Annotated Image", resultImage);
 	waitKey();
+}
+
+void OnVideo()
+{
+
+	string sWorkingDir = "/home/itv/Desktop/ellipse_detect";
+	string imagename = "1.jpg";
+
+	string filename = sWorkingDir + "/images/" + imagename;
+	
+	VideoCapture cap(0);
+	if(!cap.isOpened()) return;
+
+	int width = 800;
+	int height = 600;
+
+	// Parameters Settings (Sect. 4.2)
+	int		iThLength = 16;
+	float	fThObb = 3.0f;
+	float	fThPos = 1.0f;
+	float	fTaoCenters = 0.05f;
+	int 	iNs = 16;
+	float	fMaxCenterDistance = sqrt(float(width*width + height*height)) * fTaoCenters;
+
+	float	fThScoreScore = 0.4f;
+
+	// Other constant parameters settings. 
+
+	// Gaussian filter parameters, in pre-processing
+	Size	szPreProcessingGaussKernelSize = Size(5, 5);
+	double	dPreProcessingGaussSigma = 1.0;
+
+	float	fDistanceToEllipseContour = 0.1f;	// (Sect. 3.3.1 - Validation)
+	float	fMinReliability = 0.4f;	// Const parameters to discard bad ellipses
+
+
+	// Initialize Detector with selected parameters
+	CEllipseDetectorYaed* yaed = new CEllipseDetectorYaed();
+	yaed->SetParameters(szPreProcessingGaussKernelSize,
+		dPreProcessingGaussSigma,
+		fThPos,
+		fMaxCenterDistance,
+		iThLength,
+		fThObb,
+		fDistanceToEllipseContour,
+		fThScoreScore,
+		fMinReliability,
+		iNs
+		);
+
+	Mat1b gray;
+	while(true)
+	{	
+		Mat3b image;
+		cap >> image;
+		cvtColor(image, gray, COLOR_BGR2GRAY);
+
+			vector<Ellipse> ellsYaed;
+		Mat1b gray2 = gray.clone();
+		yaed->Detect(gray2, ellsYaed);
+
+		vector<double> times = yaed->GetTimes();
+		cout << "--------------------------------" << endl;
+		cout << "Execution Time: " << endl;
+		cout << "Edge Detection: \t" << times[0] << endl;
+		cout << "Pre processing: \t" << times[1] << endl;
+		cout << "Grouping:       \t" << times[2] << endl;
+		cout << "Estimation:     \t" << times[3] << endl;
+		cout << "Validation:     \t" << times[4] << endl;
+		cout << "Clustering:     \t" << times[5] << endl;
+		cout << "--------------------------------" << endl;
+		cout << "Total:	         \t" << yaed->GetExecTime() << endl;
+		cout << "--------------------------------" << endl;
+
+
+		vector<Ellipse> gt;
+		LoadGT(gt, sWorkingDir + "/gt/" + "gt_" + imagename + ".txt", true); // Prasad is in radians
+
+		Mat3b resultImage = image.clone();
+
+		// Draw GT ellipses
+		for (unsigned i = 0; i < gt.size(); ++i)
+		{
+			Ellipse& e = gt[i];
+			Scalar color(0, 0, 255);
+			ellipse(resultImage, Point(cvRound(e._xc), cvRound(e._yc)), Size(cvRound(e._a), cvRound(e._b)), e._rad*180.0 / CV_PI, 0.0, 360.0, color, 3);
+		}
+
+		yaed->DrawDetectedEllipses(resultImage, ellsYaed);
+
+
+		Mat3b res = image.clone();
+
+		Evaluate(gt, ellsYaed, fThScoreScore, res);
+
+
+		imshow("Yaed", resultImage);
+
+			
+		if(waitKey(10) >= 0) break;
+	}
 }
 
 void OnDataset()
@@ -435,8 +511,8 @@ void OnDataset()
 
 
 		// Initialize Detector with selected parameters
-		CEllipseDetectorYaed yaed;
-		yaed.SetParameters(szPreProcessingGaussKernelSize,
+		CEllipseDetectorYaed* yaed = new CEllipseDetectorYaed();
+		yaed->SetParameters(szPreProcessingGaussKernelSize,
 			dPreProcessingGaussSigma,
 			fThPos,
 			fMaxCenterDistance,
@@ -451,7 +527,8 @@ void OnDataset()
 
 		// Detect
 		vector<Ellipse> ellsYaed;
-		yaed.Detect(gray.clone(), ellsYaed);
+		Mat1b gray2 = gray.clone();
+		yaed->Detect(gray2, ellsYaed);
 
 		/*vector<double> times = yaed.GetTimes();
 		cout << "--------------------------------" << endl;
@@ -466,7 +543,7 @@ void OnDataset()
 		cout << "Total:	         \t" << yaed.GetExecTime() << endl;
 		cout << "--------------------------------" << endl;*/
 
-		tms.push_back(yaed.GetExecTime());
+		tms.push_back(yaed->GetExecTime());
 
 
 		vector<Ellipse> gt;
@@ -490,7 +567,7 @@ void OnDataset()
 			ellipse(resultImage, Point(cvRound(e._xc), cvRound(e._yc)), Size(cvRound(e._a), cvRound(e._b)), e._rad*180.0 / CV_PI, 0.0, 360.0, color, 3);
 		}
 
-		yaed.DrawDetectedEllipses(resultImage, ellsYaed);
+		yaed->DrawDetectedEllipses(resultImage, ellsYaed);
 
 		//imwrite(out_folder + name + ".png", resultImage);
 		//imshow("Yaed", resultImage);
@@ -520,7 +597,7 @@ void OnDataset()
 }
 
 
-int main(int argc, char** argv)
+int main1()
 {
 	//OnVideo();
 	//OnImage();
@@ -530,13 +607,15 @@ int main(int argc, char** argv)
 }
 
 // Test on single image
-int main2()
-{
-	string images_folder = "D:\\SO\\img\\";
-	string out_folder = "D:\\SO\\img\\";
+int main()
+{	
+	cout << "test" << endl;
+
+	string images_folder = "C:\\Users\\domin\\source\\repos\\bakalarka\\input\\";
+	string out_folder = "C:\\Users\\domin\\source\\repos\\bakalarka\\output\\";
 	vector<string> names;
 
-	glob(images_folder + "Lo3my4.*", names);
+	glob(images_folder + "circles.*", names);
 
 	for (const auto& image_name : names)
 	{
@@ -544,6 +623,9 @@ int main2()
 		name = name.substr(0, name.find_last_of("."));
 
 		Mat3b image = imread(image_name);
+		imshow("out",image);
+		cv::waitKey(100);
+
 		Size sz = image.size();
 		
 		// Convert to grayscale
@@ -570,9 +652,8 @@ int main2()
 		float	fMinReliability = 0.5;	// Const parameters to discard bad ellipses
 
 
-		// Initialize Detector with selected parameters
-		CEllipseDetectorYaed yaed;
-		yaed.SetParameters(szPreProcessingGaussKernelSize,
+		CEllipseDetectorYaed* yaed = new CEllipseDetectorYaed();
+		yaed->SetParameters(szPreProcessingGaussKernelSize,
 			dPreProcessingGaussSigma,
 			fThPos,
 			fMaxCenterDistance,
@@ -587,9 +668,10 @@ int main2()
 
 		// Detect
 		vector<Ellipse> ellsYaed;
-		yaed.Detect(gray.clone(), ellsYaed);
+		Mat1b gray2 = gray.clone();
+		yaed->Detect(gray2, ellsYaed);
 
-		vector<double> times = yaed.GetTimes();
+		vector<double> times = yaed->GetTimes();
 		cout << "--------------------------------" << endl;
 		cout << "Execution Time: " << endl;
 		cout << "Edge Detection: \t" << times[0] << endl;
@@ -599,13 +681,13 @@ int main2()
 		cout << "Validation:     \t" << times[4] << endl;
 		cout << "Clustering:     \t" << times[5] << endl;
 		cout << "--------------------------------" << endl;
-		cout << "Total:	         \t" << yaed.GetExecTime() << endl;
+		cout << "Total:	         \t" << yaed->GetExecTime() << endl;
 		cout << "--------------------------------" << endl;
 
 
 		
 		Mat3b resultImage = image.clone();
-		yaed.DrawDetectedEllipses(resultImage, ellsYaed);
+		yaed->DrawDetectedEllipses(resultImage, ellsYaed);
 		
 		imwrite(out_folder + name + ".png", resultImage);
 
