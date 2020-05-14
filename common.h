@@ -121,18 +121,18 @@ struct Ellipse
 	Ellipse(float xc, float yc, float a, float b, float rad, float score = 0.f) : _xc(xc), _yc(yc), _a(a), _b(b), _rad(rad), _score(score) {};
 	Ellipse(const Ellipse& other) : _xc(other._xc), _yc(other._yc), _a(other._a), _b(other._b), _rad(other._rad), _score(other._score) {};
 
-	void Ellipse::Draw(Mat& img, const Scalar& color, const int thickness)
+	void Draw(Mat& img, const Scalar& color, const int thickness)
 	{
 		ellipse(img, Point(cvRound(_xc),cvRound(_yc)), Size(cvRound(_a),cvRound(_b)), _rad * 180.0 / CV_PI, 0.0, 360.0, color, thickness);
 	};
 
-	void Ellipse::Draw(Mat3b& img, const int thickness)
+	void Draw(Mat3b& img, const int thickness)
 	{
 		Scalar color(0, cvFloor(255.f * _score), 0);
 		ellipse(img, Point(cvRound(_xc),cvRound(_yc)), Size(cvRound(_a),cvRound(_b)), _rad * 180.0 / CV_PI, 0.0, 360.0, color, thickness);
 	};
 
-	bool Ellipse::operator<(const Ellipse& other) const
+	bool operator<(const Ellipse& other) const
 	{
 		if(_score == other._score)
 		{

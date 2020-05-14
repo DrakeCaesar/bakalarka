@@ -303,7 +303,7 @@ void OnImage()
 
 	// Convert to grayscale
 	Mat1b gray;
-	cvtColor(image, gray, CV_BGR2GRAY);
+	cvtColor(image, gray, COLOR_BGR2GRAY);
 
 
 	// Parameters Settings (Sect. 4.2)
@@ -412,7 +412,7 @@ void OnDataset()
 
 		// Convert to grayscale
 		Mat1b gray;
-		cvtColor(image, gray, CV_BGR2GRAY);
+		cvtColor(image, gray, COLOR_BGR2GRAY);
 
 		// Parameters Settings (Sect. 4.2)
 		int		iThLength = 16;
@@ -548,7 +548,7 @@ int main2()
 		
 		// Convert to grayscale
 		Mat1b gray;
-		cvtColor(image, gray, CV_BGR2GRAY);
+		cvtColor(image, gray, COLOR_BGR2GRAY);
 		
 		// Parameters Settings (Sect. 4.2)
 		int		iThLength = 16;

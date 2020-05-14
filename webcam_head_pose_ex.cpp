@@ -485,7 +485,7 @@ int sector(int limit, int divisions, int step) {
 
     return (step - reminder) / subsection;
 }
-typedef struct Ellipse {
+typedef struct EllipseX {
     double x;
     double y;
     double w;
@@ -494,7 +494,7 @@ typedef struct Ellipse {
     double a;
 } primary, secondary;
 
-void translate(struct Ellipse el, int sinint, int cosint, float scale) {
+void translate(struct EllipseX el, int sinint, int cosint, float scale) {
 
 }
 
@@ -543,8 +543,8 @@ int main()
     int cols = imagec.cols;
     //cout << "cols: " << cols << endl;
     //cout << "rows: " << rows << endl;
-    struct Ellipse primary = { imagec.cols / 2, imagec.rows / 2, 95, 145, 0 };
-    struct Ellipse secondary;
+    struct EllipseX primary = { imagec.cols / 2, imagec.rows / 2, 95, 145, 0 };
+    struct EllipseX secondary;
 
     while (true) {
         cvtColor(image, imagec, COLOR_GRAY2BGR);

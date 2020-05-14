@@ -20,6 +20,10 @@ last update: 23/12/2014
 */
 
 #include "common.h"
+#include <opencv2\core\types_c.h>
+#include <opencv2\core\core_c.h>
+#include <opencv2\imgproc\types_c.h>
+#include <opencv2\imgproc\imgproc_c.h>
 
 
 void cvCanny2(	const void* srcarr, void* dstarr,
@@ -323,9 +327,9 @@ void Canny2(	InputArray image, OutputArray _edges,
 	_sobel_y.create(src.size(), CV_16S);
 
 
-    CvMat c_src = src, c_dst = _edges.getMat();
-	CvMat c_dx = _sobel_x.getMat();
-	CvMat c_dy = _sobel_y.getMat();
+    Mat c_src = src, c_dst = _edges.getMat();
+	Mat c_dx = _sobel_x.getMat();
+	Mat c_dy = _sobel_y.getMat();
 
 
     cvCanny2(	&c_src, &c_dst, threshold1, threshold2,
@@ -1353,9 +1357,9 @@ void Canny3(	InputArray image, OutputArray _edges,
 	_sobel_y.create(src.size(), CV_16S);
 
 
-    CvMat c_src = src, c_dst = _edges.getMat();
-	CvMat c_dx = _sobel_x.getMat();
-	CvMat c_dy = _sobel_y.getMat();
+	Mat c_src = src, c_dst = _edges.getMat();
+	Mat c_dx = _sobel_x.getMat();
+	Mat c_dy = _sobel_y.getMat();
 
 
     cvCanny3(	&c_src, &c_dst, 
