@@ -39,7 +39,8 @@
 #include <thread>
 #include <opencv2\imgproc.hpp>
 #include <chrono>
-#include< opencv2/features2d.hpp >
+#include <opencv2/features2d.hpp >
+#include "common.h"
 #pragma comment (lib, "Normaliz.lib")
 #pragma comment (lib, "Ws2_32.lib")
 #pragma comment (lib, "Wldap32.lib")
@@ -380,7 +381,7 @@ void getQuadrangleSubPix_8u32f_CnR(const uchar* src, size_t src_step, Size src_s
                 }
                 else if (cn == 3)
                 {
-                    ptr += ixs * 3;
+                    ptr += (int) ixs * 3;
                     float t0 = ptr[0] * w00 + ptr[3] * w01 + ptr[src_step] * w10 + ptr[src_step + 3] * w11;
                     float t1 = ptr[1] * w00 + ptr[4] * w01 + ptr[src_step + 1] * w10 + ptr[src_step + 4] * w11;
                     float t2 = ptr[2] * w00 + ptr[5] * w01 + ptr[src_step + 2] * w10 + ptr[src_step + 5] * w11;
@@ -468,9 +469,40 @@ void getRotRectImg(cv::RotatedRect rr, Mat& img, Mat& dst)
     myGetQuadrangleSubPix(img, dst, m);
 }
 
+int sector(int limit, int divisions, int step) {
+    int reminder = limit % divisions;
+    int subsection = limit / divisions;
+    /*
+    if ((step - reminder) / subsection == 4) {
+        cout << "subsection = limit / divisions" << endl;
+        cout << "subsection = " << limit << " / " << divisions << endl;
+        cout << "subsection = " << subsection << endl;
+        cout << "step = " << step << endl;
+        cout << "step / subsection = " << step / subsection << endl << endl;
+        Sleep(1000);
+    }
+    */
+
+    return (step - reminder) / subsection;
+}
+typedef struct Ellipse {
+    double x;
+    double y;
+    double w;
+    double h;
+    int d;
+    double a;
+} primary, secondary;
+
+void translate(struct Ellipse el, int sinint, int cosint, float scale) {
+
+}
+
+
 
 int main()
 {   
+    const int grid = 5;
     
     cv::Mat image;
     cv::Rect rect[2];
@@ -478,7 +510,7 @@ int main()
 
     
     image = imread("media/circles.png");
-    namedWindow("out", WINDOW_AUTOSIZE);
+    cv::namedWindow("out", WINDOW_AUTOSIZE);
 
     cv_image<bgr_pixel> cimg(image);
 
@@ -497,11 +529,6 @@ int main()
     Mat dst;
 
 
-
-
-
-
-
     //Mat render = croppedImage.clone();
 
     auto kernel = getStructuringElement(MORPH_RECT, Size(3, 3));
@@ -516,75 +543,336 @@ int main()
     int cols = imagec.cols;
     //cout << "cols: " << cols << endl;
     //cout << "rows: " << rows << endl;
-    double ellipseX = imagec.cols / 2;
-    double ellipseY = imagec.rows / 2;
-    double ellipseW = 95;
-    double ellipseH = 145;
-    int ellipseD = 30;
+    struct Ellipse primary = { imagec.cols / 2, imagec.rows / 2, 95, 145, 0 };
+    struct Ellipse secondary;
+
     while (true) {
         cvtColor(image, imagec, COLOR_GRAY2BGR);
-        ellipseD++;
-        double ellipseA = 2 * pi * (1.f * ellipseD / 360);
-        //RotatedRect rRect = RotatedRect(Point2f(100+random(20), 100 + random(20)), Size2f(100, 50), 0);
-        
-        RotatedRect rRect = RotatedRect(Point2f(ellipseX, ellipseY), Size2f(ellipseW, ellipseH), ellipseD);
+        //ellipseD++;
+        primary.a = 2 * pi * (1.f * primary.d / 360);
+        //RotatedRect ellipseRect = RotatedRect(Point2f(100+random(20), 100 + random(20)), Size2f(100, 50), 0);
 
-        Mat rotatedImage(rRect.size, CV_32FC3);
-        getRotRectImg(rRect, imagec, rotatedImage);
-        
-        //Rect brect = rRect.boundingRect();
+
+        RotatedRect ellipseRect = RotatedRect(Point2f(primary.x, primary.y), Size2f(primary.w, primary.h), primary.d);
+        RotatedRect ellipseBorder = RotatedRect(Point2f(primary.x, primary.y), Size2f(primary.w + 40, primary.h + 40), primary.d);
+
+        Mat mask(ellipseBorder.size, CV_32FC3);
+        Mat rotatedImage(ellipseBorder.size, CV_32FC3);
+        Mat temp = imagec.clone();
+        getRotRectImg(ellipseBorder, imagec, mask);
+        getRotRectImg(ellipseBorder, imagec, rotatedImage);
+
+        //Rect brect = ellipseRect.boundingRect();  
         //cv::rectangle(imagec, brect, Scalar(255, 0, 0), 2);
-        //ellipse(imagec, rRect.center, rRect.size * 0.5f, rRect.angle, 0, 360, Scalar(0, 255, 255), 1, LINE_AA);
-        int blacks = 0;
-        int whites = 0;
-        int greys = 0;
-        /*
-        for (int j = 0; j < imagec.rows; j++) {
-            for (int i = 0; i < imagec.cols; i++) {
-                double point = pow((cos(ellipseA) * (i - ellipseX) + sin(ellipseA) * (j - ellipseY)) / (ellipseW / 2), 2) +
-                    pow((sin(ellipseA) * (i - ellipseX) - cos(ellipseA) * (j - ellipseY)) / (ellipseH / 2), 2);
-                if (point <= 1 && point > 0.95) {
-                    Vec3b color = imagec.at<Vec3b>(Point(i, j));
-                    Vec3b black = Vec3b(0, 0, 0);
-                    Vec3b white = Vec3b(255, 255, 255);
+        //ellipse(imagec, ellipseRect.center, ellipseRect.size * 0.5f, ellipseRect.angle, 0, 360, Scalar(0, 255, 255), 1, LINE_AA);
 
-                    if (color == black) {
-                        imagec.at<Vec3b>(Point(i, j)) = Vec3b(0, 242, 221);
-                        blacks++;
-                    }
-                    else if (color == white) {
-                        imagec.at<Vec3b>(Point(i, j)) = Vec3b(0, 200, 50);
-                        whites++;
-                    }
-                    else{
-                        imagec.at<Vec3b>(Point(i, j)) = Vec3b(255, 0, 0);
-                        greys++;
-                    }
 
-                }
-            }
-        }
-        cout << "whites: " << whites << ", blacks: " << blacks << ", greys: " << greys << endl;
-        */
-        
+
         Point2f vertices[4];
-        rRect.points(vertices);
+        ellipseRect.points(vertices);
         for (int i = 0; i < 4; i++)
             cv::line(imagec, vertices[i], vertices[(i + 1) % 4], Scalar(0, 255, 0), 2);
 
-        ellipse(imagec, rRect, Scalar(0, 0, 255), 1, LINE_AA);
-        
-        imshow("out", imagec);
-        waitKey(1);
-        
+        ellipse(imagec, ellipseRect, Scalar(0, 0, 255), 1, LINE_AA);
 
+        cv::imshow("out", imagec);
+        cv::waitKey(1);
+        //cout << "test" << endl;
+        //waitKey(1);
+        // secondary = { 1.f * rotatedImage.cols / 2 , 1.f * rotatedImage.rows / 2 , primary.w,secondary.h, 0, 2 * pi * (1.f * 0 / 360) };
+
+        secondary.x = 1.f * rotatedImage.cols / 2;
+        secondary.y = 1.f * rotatedImage.rows / 2;
+        secondary.w = primary.w;
+        secondary.h = primary.h;
+        secondary.h = 0;
+        secondary.a = 0.f;
+
+ 
+        int whites[grid][grid][4];
+        int blacks[grid][grid][4];
+
+        for (int j = 0; j < 3; j++) {
+            for (int i = 0; i < 3; i++) {
+                for (int k = 0; k < 4; k++) {
+                    whites[j][i][k] = blacks[j][i][k] = 0;
+                }
+            }
+        }
+        for (int j = 0; j < rotatedImage.rows; j++) {
+            for (int i = 0; i < rotatedImage.cols; i++) {
+                int sectorx = sector(rotatedImage.cols, grid, i);
+                int sectory = sector(rotatedImage.rows, grid, j);
+                double point = pow((cos(secondary.a) * (i - secondary.x) + sin(secondary.a) * (j - secondary.y)) / (secondary.w / 2), 2) +
+                    pow((sin(secondary.a) * (i - secondary.x) - cos(secondary.a) * (j - secondary.y)) / (secondary.h / 2), 2);
+                int index;
+                if (point <= 0.8)
+                    index = 0;
+                else if (point <= 1)
+                    index = 1;
+                else if (point <= 1.2)
+                    index = 2;
+                else
+                    index = 3;
+                //cout << rotatedImage.at<Vec3f>(Point(i, j));
+                Vec3f color = rotatedImage.at<Vec3f>(Point(i, j));
+                Vec3f black = Vec3f(0, 0, 0);
+                Vec3f white = Vec3f(1, 1, 1);
+
+                if (color == black) {
+                    //rotatedImage.at<Vec3f>(Point(i, j)) = Vec3f(0, 1, 1);
+
+                    blacks[sectory][sectorx][index]++;
+                }
+                else {
+                    //rotatedImage.at<Vec3f>(Point(i, j)) = Vec3f(1, 0, 0);
+                    whites[sectory][sectorx][index]++;
+                }
+                //cout << sectorx << " " << sectory << endl;
+                int col = 0;
+                if (color == black)
+                    col = 1;
+                Vec3f red = Vec3f(1, 0, 0);
+                Vec3f blue = Vec3f(0, 0, 1);
+                Vec3f yellow = Vec3f(1, 1, 0);
+                Vec3f magenta = Vec3f(1, 0, 1);
+                if (index % 2 == 1) {
+                    if ((sectorx + sectory + col) % 2 == 1) {
+                        mask.at<Vec3f>(Point(i, j)) = blue;
+
+                    }
+                    else {
+                        mask.at<Vec3f>(Point(i, j)) = red;
+                    }
+                }
+                else
+                    if ((sectorx + sectory + col) % 2 == 0) {
+                        mask.at<Vec3f>(Point(i, j)) = blue;
+                    }
+                    else {
+                        mask.at<Vec3f>(Point(i, j)) = red;
+                    }
+
+            }
+        }
+        double step = .1f;
+        double stepmult = 1.f;
+        int subsections = (grid - 1) * 4;
+        double center = (1.f * grid - 1) / 2;
+        cout << center << endl;
+
+
+
+        /* move left side right
+        ellipseW = ellipseW - step * 2;
+        ellipseX = ellipseX + step;
+        */
+        /* move left side left
+        ellipseW = ellipseW + step * 2;
+        ellipseX = ellipseX - step;
+        */
+
+
+        /* move right side left
+        ellipseW = ellipseW - step * 2;
+        ellipseX = ellipseX - step;
+        */
+        /* move right side right
+        ellipseW = ellipseW + step * 2;
+        ellipseX = ellipseX + step;
+        */
+
+
+        /* move bottom side up
+        ellipseH = ellipseH - step * 2;
+        ellipseY = ellipseY - step;
+        */
+        /* move bottom side down
+        ellipseH = ellipseH + step * 2;
+        ellipseY = ellipseY + step;
+        */
+
+        /* move top side down
+        ellipseH = ellipseH - step * 2;
+        ellipseY = ellipseY + step;
+        */
+        /* move top side up
+        ellipseH = ellipseH + step * 2;
+        ellipseY = ellipseY - step;
+        */
+
+        /* move right
+        ellipseX = ellipseX + step;
+        */
+
+        /* move left
+        ellipseX = ellipseX - step;
+        */
+
+        /* move down
+        ellipseY = ellipseY + step;
+        */
+
+        /* move up
+        ellipseY = ellipseY - step;
+        */
+        /*
+        for (int j = 0; j < grid; j++) {
+            for (int i = 0; i < grid; i++) {
+                cout << "[" << j << ", " << i << "] ";        
+            }
+            cout << endl;
+        }
+        cout << endl;
+
+        for (int j = 0; j < grid; j++) {
+            for (int i = 0; i < grid; i++) {
+                cout << "[" << j -center << ", " << i-center << "] ";
+            }
+            cout << endl;
+        }
+        cout << endl;
+        for (int j = 0; j < grid; j++) {
+            for (int i = 0; i < grid; i++) {
+                cout << "[" << atan2(j - center,i - center) << ", " << fixed << setprecision(2) << atan2(j-center, i - center) * (180 / pi) << "] ";
+            }
+            cout << endl;
+        }
+
+
+        cout << endl;
+        primary.h = primary.h + step * 2;
+        primary.y = primary.y - step;
+        */
+        for (int j = 0; j < grid; j++) {
+            for (int i = 0; i < grid; i++) {
+                
+                if (1.0f * whites[j][i][1] / (blacks[j][i][1] + whites[j][i][1]) < 1.0f * blacks[j][i][2] / (blacks[j][i][2] + whites[j][i][2])) {
+                    translate(primary, j - center, i - center, step);
+                    //ellipseW = ellipseW + step;
+                    //ellipseX = ellipseX - step/2;
+
+                }
+                else if (1.0f * whites[j][i][1] / (blacks[j][i][1] + whites[j][i][1]) > 1.0f * blacks[j][i][2] / (blacks[j][i][2] + whites[j][i][2])) {
+                    //ellipseW = ellipseW - step;
+                    //ellipseX = ellipseX + step/2;
+
+                }
+                
+
+
+
+            }
+        }
         
-        double ellipseX2 = rotatedImage.cols / 2;
-        double ellipseY2 = rotatedImage.rows / 2;
-        double ellipseW2 = rotatedImage.cols;
-        double ellipseH2 = rotatedImage.rows;
-        int ellipseD2 = 0;
-        double ellipseA2 = 2 * pi * (1.f * ellipseD2 / 360);
+        /*
+        if (
+            1.0f * whites[1][0][1] / (blacks[1][0][1] + whites[1][0][1]) <
+            1.0f * blacks[1][0][2] / (blacks[1][0][2] + whites[1][0][2])
+            ) {
+            ellipseX = ellipseX + step;
+        }
+        else {
+            ellipseX = ellipseX - step;
+        }
+        if (
+            1.0f * whites[0][1][1] / (blacks[0][1][1] + whites[0][1][1]) <
+            1.0f * blacks[0][1][2] / (blacks[0][1][2] + whites[0][1][2])
+            ){
+            //ellipseY = ellipseY + step;
+        }
+        else {
+            //ellipseY = ellipseY - step;
+        }
+
+        if (
+            1.0f * whites[1][2][1] / (blacks[1][2][1] + whites[1][2][1]) <
+            1.0f * blacks[1][2][2] / (blacks[1][2][2] + whites[1][2][2])
+            ) {
+            ellipseW = ellipseW - step;
+        }
+        else {
+            ellipseW = ellipseW + step;
+        }
+        if (
+            1.0f * whites[2][1][1] / (blacks[2][1][1] + whites[2][1][1]) <
+            1.0f * blacks[2][1][2] / (blacks[2][1][2] + whites[2][1][2])
+            ) {
+            ellipseH = ellipseH - step;
+        }
+        else {
+            ellipseH = ellipseH + step;
+        }
+        */
+        /*
+        if (
+            1.0f * whites[0][0][1] / (blacks[0][0][1] + whites[0][0][1]) <
+            1.0f * blacks[0][0][2] / (blacks[0][0][2] + whites[0][0][2])
+            ) {
+            ellipseX = ellipseX + step / stepmult;
+            ellipseY = ellipseY + step / stepmult;
+        }
+        else {
+            ellipseX = ellipseX - step / stepmult;
+            ellipseY = ellipseY - step / stepmult;
+        }
+        
+        
+        if (
+            1.0f * whites[2][0][1] / (blacks[2][0][1] + whites[2][0][1]) <
+            1.0f * blacks[2][0][2] / (blacks[2][0][2] + whites[2][0][2])
+            ) {
+            ellipseX = ellipseX + step / stepmult;
+            ellipseH = ellipseH - step / stepmult;
+        }
+        else {
+            ellipseX = ellipseX - step / stepmult;
+            ellipseH = ellipseH + step / stepmult;
+        }
+
+        if (
+            1.0f * whites[0][2][1] / (blacks[0][2][1] + whites[0][2][1]) <
+            1.0f * blacks[0][2][2] / (blacks[0][2][2] + whites[0][2][2])
+            ) {
+            ellipseY = ellipseY + step / stepmult;
+            ellipseW = ellipseW - step / stepmult;
+        }
+        else {
+            ellipseY = ellipseY - step / stepmult;
+            ellipseW = ellipseW + step / stepmult;
+        }
+
+
+        if (
+            1.0f * whites[2][0][1] / (blacks[2][0][1] + whites[2][0][1]) <
+            1.0f * blacks[2][0][2] / (blacks[2][0][2] + whites[2][0][2])
+            ) {
+            ellipseH = ellipseH - step / stepmult;
+            ellipseW = ellipseW - step / stepmult;
+        }
+        else {
+            ellipseH = ellipseH + step / stepmult;
+            ellipseW = ellipseW + step / stepmult;
+        }
+        */
+        /*
+        cout << "[" << endl;
+        for (int j = 0; j < 3; j++) {
+            cout << "  [" << endl;
+            for (int i = 0; i < 3; i++) {
+                cout << "    [" << endl << "      ";
+                for (int k = 0; k < 3; k++) {
+                    cout << "[ " <<whites[i][k][j] << "," << blacks[i][k][j] <<"," << whites[i][k][j]+ blacks[i][k][j] << " ] ";
+                }
+
+                cout << endl << "    ]" << endl;
+            }
+            cout << "  ]" << endl;
+        }
+        cout << "]" << endl << endl;
+        */
+        //cout << whites;
+        /*
         for (int j = 0; j < rotatedImage.rows; j++) {
             for (int i = 0; i < rotatedImage.cols; i++) {
                 double point = pow((cos(ellipseA2) * (i - ellipseX2) + sin(ellipseA2) * (j - ellipseY2)) / (ellipseW2 / 2), 2) +
@@ -611,14 +899,17 @@ int main()
                 }
             }
         }
+        */
         //cout << "whites: " << whites << ", blacks: " << blacks << ", greys: " << greys << endl;
         
-        imshow("rotImg", rotatedImage);
+        cv::imshow("rotImg", rotatedImage);
+        cv::imshow("mask", mask);
 
+        cv::waitKey(1);
 
     }
     while (true) {
-        cv::waitKey(0);
+        cv::waitKey(1);
     }
     
     
@@ -634,11 +925,11 @@ int main()
 
 
     Mat frame = imread("media/circles.png");
-    namedWindow("frame", WINDOW_AUTOSIZE);
+    cv::namedWindow("frame", WINDOW_AUTOSIZE);
 
-    createTrackbar("threshold", "frame", &sliderPos, 255);
-    createTrackbar("alpha", "frame", &alpha, 100);
-    createTrackbar("beta", "frame", &beta, 200);
+    cv::createTrackbar("threshold", "frame", &sliderPos, 255);
+    cv::createTrackbar("alpha", "frame", &alpha, 100);
+    cv::createTrackbar("beta", "frame", &beta, 200);
     while (true) {
         cv::waitKey(0);
     }
