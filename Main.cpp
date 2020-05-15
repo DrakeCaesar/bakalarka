@@ -21,6 +21,9 @@ last update: 23/12/2014
 
 //#include <cv.hpp>
 #include <opencv2\opencv.hpp>
+#include <limits.h> /* PATH_MAX */
+#include <stdlib.h>
+#include <stdio.h>
 
 #include "EllipseDetectorYaed.h"
 #include <fstream>
@@ -263,15 +266,18 @@ std::tuple<float, float, float> Evaluate(const vector<Ellipse>& ellGT, const vec
 	return make_tuple(pr, re, fmeasure);
 }
 
-void OnImage()
+void OnImage(char *image_path)
 {
-	string sWorkingDir = "C:/Users/miki/Pictures";
-	string imagename = "Cloud.bmp";
+	
+	string sWorkingDir = "C:/Users/domin/source/repos/bakalarka/input";
+	string imagename = "circles.png";
 
-	string filename = sWorkingDir + "/images/" + imagename;
-
+	string filename = "input/circles.jpg";
 	// Read image
 	Mat3b image = imread(filename);
+	imshow("test", image);
+	waitKey(1);
+
 	Size sz = image.size();
 
 	// Convert to grayscale
@@ -334,7 +340,7 @@ void OnImage()
 
 
 	vector<Ellipse> gt;
-	LoadGT(gt, "muchtesting.txt", true); // Prasad is in radians
+	LoadGT(gt, "circle.txt", true); // Prasad is in radians
 
 	Mat3b resultImage = image.clone();
 
@@ -412,7 +418,7 @@ void OnVideo()
 	{	
 		Mat3b image;
 		cap >> image;
-		cvtColor(image, gray, COLOR_BGR2GRAY);
+		cvtColor(image, gray, COLOR_BGR2GRAY);	
 
 			vector<Ellipse> ellsYaed;
 		Mat1b gray2 = gray.clone();
@@ -597,25 +603,26 @@ void OnDataset()
 }
 
 
-int main1()
+int main(int argc, char** argv)
 {
-	//OnVideo();
-	//OnImage();
-	OnDataset();
 
+	const char *unresolved_path = "C:\\Users\\domin\\source\\repos\\bakalarka\\input\\circles.png";
+
+	OnImage((char * )unresolved_path);
+	//OnDataset();
+	// free(extension);
 	return 0;
 }
 
 // Test on single image
-int main()
-{	
-	cout << "test" << endl;
-
+int main2()
+{
 	string images_folder = "C:\\Users\\domin\\source\\repos\\bakalarka\\input\\";
 	string out_folder = "C:\\Users\\domin\\source\\repos\\bakalarka\\output\\";
 	vector<string> names;
 
 	glob(images_folder + "circles.*", names);
+
 
 	for (const auto& image_name : names)
 	{
@@ -623,7 +630,7 @@ int main()
 		name = name.substr(0, name.find_last_of("."));
 
 		Mat3b image = imread(image_name);
-		imshow("out",image);
+				imshow("out",image);
 		cv::waitKey(100);
 
 		Size sz = image.size();

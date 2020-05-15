@@ -25,7 +25,6 @@ last update: 23/12/2014
 #include <opencv2\imgproc\types_c.h>
 #include <opencv2\imgproc\imgproc_c.h>
 
-
 void cvCanny2(	const void* srcarr, void* dstarr,
 				double low_thresh, double high_thresh,
 				void* dxarr, void* dyarr,
@@ -217,7 +216,7 @@ void cvCanny2(	const void* srcarr, void* dstarr,
 
                 if( y < tg22x )
                 {
-                    if( m > _mag[j-1] && m >= _mag[j+1] )
+                    if( m > _mag[j-1] && m >= _mag[j+1] )https://www.youtube.com/watch?v=TRCPTCQEqOw
                     {
                         if( m > high && !prev_flag && _map[j-mapstep] != 2 )
                         {

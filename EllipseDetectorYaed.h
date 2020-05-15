@@ -77,8 +77,8 @@ class CEllipseDetectorYaed
 	// Preprocessing - Gaussian filter. See Sect [] in the paper
 	Size	_szPreProcessingGaussKernelSize;	// size of the Gaussian filter in preprocessing step
 	double	_dPreProcessingGaussSigma;			// sigma of the Gaussian filter in the preprocessing step
-
-
+		
+	
 
 	// Selection strategy - Step 1 - Discard noisy or straight arcs. See Sect [] in the paper
 	int		_iMinEdgeLength;					// minimum edge size				
@@ -128,31 +128,31 @@ public:
 	CEllipseDetectorYaed(void);
 	~CEllipseDetectorYaed(void);
 
-	void DetectAfterPreProcessing(vector<Ellipse>& ellipses, Mat1b& E, const Mat1f& PHI = Mat1f());
+	void DetectAfterPreProcessing(vector<Ellipse>& ellipses, Mat1b& E, const Mat1f& PHI=Mat1f());
 
 	//Detect the ellipses in the gray image
 	void Detect(Mat1b& gray, vector<Ellipse>& ellipses);
-
+	
 	//Draw the first iTopN ellipses on output
-	void DrawDetectedEllipses(Mat3b& output, vector<Ellipse>& ellipses, int iTopN = 0, int thickness = 2);
-
+	void DrawDetectedEllipses(Mat3b& output, vector<Ellipse>& ellipses, int iTopN=0, int thickness=2);
+	
 	//Set the parameters of the detector
-	void SetParameters(Size	szPreProcessingGaussKernelSize,
-		double	dPreProcessingGaussSigma,
-		float 	fThPosition,
-		float	fMaxCenterDistance,
-		int		iMinEdgeLength,
-		float	fMinOrientedRectSide,
-		float	fDistanceToEllipseContour,
-		float	fMinScore,
-		float	fMinReliability,
-		int     iNs
-	);
+	void SetParameters	(	Size	szPreProcessingGaussKernelSize,
+							double	dPreProcessingGaussSigma,
+							float 	fThPosition,
+							float	fMaxCenterDistance,
+							int		iMinEdgeLength,
+							float	fMinOrientedRectSide,
+							float	fDistanceToEllipseContour,
+							float	fMinScore,
+							float	fMinReliability,
+							int     iNs
+						);
 
 	// Return the execution time
 	double GetExecTime() { return _times[0] + _times[1] + _times[2] + _times[3] + _times[4] + _times[5]; }
 	vector<double> GetTimes() { return _times; }
-
+	
 private:
 
 	//keys for hash table
@@ -179,53 +179,53 @@ private:
 	int FindMaxA(const int* v) const;
 
 	float GetMedianSlope(vector<Point2f>& med, Point2f& M, vector<float>& slopes);
-	void GetFastCenter(vector<Point>& e1, vector<Point>& e2, EllipseData& data);
-
+	void GetFastCenter	(vector<Point>& e1, vector<Point>& e2, EllipseData& data);
+	
 
 	void DetectEdges13(Mat1b& DP, VVP& points_1, VVP& points_3);
 	void DetectEdges24(Mat1b& DN, VVP& points_2, VVP& points_4);
 
-	void FindEllipses(Point2f& center,
-		VP& edge_i,
-		VP& edge_j,
-		VP& edge_k,
-		EllipseData& data_ij,
-		EllipseData& data_ik,
-		vector<Ellipse>& ellipses
-	);
+	void FindEllipses	(	Point2f& center,
+							VP& edge_i,
+							VP& edge_j,
+							VP& edge_k,
+							EllipseData& data_ij,
+							EllipseData& data_ik,
+							vector<Ellipse>& ellipses
+						);
 
 	Point2f GetCenterCoordinates(EllipseData& data_ij, EllipseData& data_ik);
 	Point2f _GetCenterCoordinates(EllipseData& data_ij, EllipseData& data_ik);
 
+	
 
+	void Triplets124	(	VVP& pi,
+							VVP& pj,
+							VVP& pk,
+							unordered_map<uint, EllipseData>& data,
+							vector<Ellipse>& ellipses
+						);
 
-	void Triplets124(VVP& pi,
-		VVP& pj,
-		VVP& pk,
-		unordered_map<uint, EllipseData>& data,
-		vector<Ellipse>& ellipses
-	);
+	void Triplets231	(	VVP& pi,
+							VVP& pj,
+							VVP& pk,
+							unordered_map<uint, EllipseData>& data,
+							vector<Ellipse>& ellipses
+						);
 
-	void Triplets231(VVP& pi,
-		VVP& pj,
-		VVP& pk,
-		unordered_map<uint, EllipseData>& data,
-		vector<Ellipse>& ellipses
-	);
+	void Triplets342	(	VVP& pi,
+							VVP& pj,
+							VVP& pk,
+							unordered_map<uint, EllipseData>& data,
+							vector<Ellipse>& ellipses
+						);
 
-	void Triplets342(VVP& pi,
-		VVP& pj,
-		VVP& pk,
-		unordered_map<uint, EllipseData>& data,
-		vector<Ellipse>& ellipses
-	);
-
-	void Triplets413(VVP& pi,
-		VVP& pj,
-		VVP& pk,
-		unordered_map<uint, EllipseData>& data,
-		vector<Ellipse>& ellipses
-	);
+	void Triplets413	(	VVP& pi,
+							VVP& pj,
+							VVP& pk,
+							unordered_map<uint, EllipseData>& data,
+							vector<Ellipse>& ellipses
+						);
 
 	void Tic(unsigned idx) //start
 	{
@@ -241,7 +241,7 @@ private:
 
 	void Toc(unsigned idx) //stop
 	{
-		_times[idx] = ((double)cv::getTickCount() - _times[idx]) * 1000. / cv::getTickFrequency();
+		_times[idx] = ((double)cv::getTickCount() - _times[idx])*1000. / cv::getTickFrequency();
 		_times[idx] += _timesHelper[idx];
 	};
 
