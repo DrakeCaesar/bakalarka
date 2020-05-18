@@ -38,6 +38,8 @@
 #include <thread>
 #include <opencv2/imgproc.hpp>
 #include <chrono>
+
+#include "ellipseDetector.h"
 #include <opencv2/features2d.hpp>
 #include "common.h"
 
@@ -503,7 +505,9 @@ void translate(struct EllipseX el, int sinint, int cosint, float scale) {
 
 
 int main()
-{   
+{
+
+    ellipseDetector((char *)"media/circles.jpg");
     const int grid = 5;
     
     cv::Mat image;

@@ -608,13 +608,10 @@ void OnDataset()
 }
 
 
-int main(int argc, char** argv)
+int ellipseDetector(char * filename)
 {
-	if (argc != 2) {
-		cout << "Expected one argument" << endl;
-		return 1;
-	}
-	char *unresolved_path = argv[1];
+
+	char *unresolved_path = filename;
 	char *resolved_path = (char *)malloc(PATH_MAX);
 	realpath(unresolved_path, resolved_path);
 	// char *extension = (char *)malloc(20);
