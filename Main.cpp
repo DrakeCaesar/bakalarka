@@ -20,10 +20,11 @@ last update: 23/12/2014
 */
 
 //#include <cv.hpp>
-#include <opencv2\opencv.hpp>
 #include <limits.h> /* PATH_MAX */
 #include <stdlib.h>
 #include <stdio.h>
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
 
 #include "EllipseDetectorYaed.h"
 #include <fstream>
@@ -268,21 +269,25 @@ std::tuple<float, float, float> Evaluate(const vector<Ellipse>& ellGT, const vec
 
 void OnImage(char *image_path)
 {
-	
-	string sWorkingDir = "C:/Users/domin/source/repos/bakalarka/input";
-	string imagename = "circles.png";
+	// Check if the file provided is a valid image
+	string filename(image_path);
+	string file_basename = basename(image_path);
+	string ext = file_basename.substr(file_basename.find_last_of(".") + 1);
+	if (!((ext == "jpeg") || (ext == "jpg"))) {
+		cout << "image must be .jpeg or .jpg" << endl;
+		return;
+	}
 
-	string filename = "input/circles.jpg";
+	string filename_minus_ext = filename.substr(0, filename.find_last_of("."));
+	cout << "Annotating image \"" << image_path << "\"" << endl;
+	
 	// Read image
 	Mat3b image = imread(filename);
-	imshow("test", image);
-	waitKey(1);
-
 	Size sz = image.size();
 
 	// Convert to grayscale
 	Mat1b gray;
-	cvtColor(image, gray, COLOR_BGR2GRAY);
+	cvtColor(image, gray, CV_BGR2GRAY);
 
 
 	// Parameters Settings (Sect. 4.2)
@@ -340,7 +345,7 @@ void OnImage(char *image_path)
 
 
 	vector<Ellipse> gt;
-	LoadGT(gt, "circle.txt", true); // Prasad is in radians
+	LoadGT(gt, filename_minus_ext + ".txt", true); // Prasad is in radians
 
 	Mat3b resultImage = image.clone();
 
@@ -418,7 +423,7 @@ void OnVideo()
 	{	
 		Mat3b image;
 		cap >> image;
-		cvtColor(image, gray, COLOR_BGR2GRAY);	
+		cvtColor(image, gray, CV_BGR2GRAY);	
 
 			vector<Ellipse> ellsYaed;
 		Mat1b gray2 = gray.clone();
@@ -494,7 +499,7 @@ void OnDataset()
 
 		// Convert to grayscale
 		Mat1b gray;
-		cvtColor(image, gray, COLOR_BGR2GRAY);
+		cvtColor(image, gray, CV_BGR2GRAY);
 
 		// Parameters Settings (Sect. 4.2)
 		int		iThLength = 16;
@@ -605,11 +610,20 @@ void OnDataset()
 
 int main(int argc, char** argv)
 {
-
-	const char *unresolved_path = "C:\\Users\\domin\\source\\repos\\bakalarka\\input\\circles.png";
-
-	OnImage((char * )unresolved_path);
+	if (argc != 2) {
+		cout << "Expected one argument" << endl;
+		return 1;
+	}
+	char *unresolved_path = argv[1];
+	char *resolved_path = (char *)malloc(PATH_MAX);
+	realpath(unresolved_path, resolved_path);
+	// char *extension = (char *)malloc(20);
+	// _splitpath_s(resolved_path, NULL, 0, NULL, 0, NULL, 0, extension, 20);
+	// cout << "file extension: " << extension << endl;
+	// OnVideo();
+	OnImage(resolved_path);
 	//OnDataset();
+	free(resolved_path);
 	// free(extension);
 	return 0;
 }
@@ -617,12 +631,11 @@ int main(int argc, char** argv)
 // Test on single image
 int main2()
 {
-	string images_folder = "C:\\Users\\domin\\source\\repos\\bakalarka\\input\\";
-	string out_folder = "C:\\Users\\domin\\source\\repos\\bakalarka\\output\\";
+	string images_folder = "D:\\SO\\img\\";
+	string out_folder = "D:\\SO\\img\\";
 	vector<string> names;
 
-	glob(images_folder + "circles.*", names);
-
+	glob(images_folder + "Lo3my4.*", names);
 
 	for (const auto& image_name : names)
 	{
@@ -630,14 +643,11 @@ int main2()
 		name = name.substr(0, name.find_last_of("."));
 
 		Mat3b image = imread(image_name);
-				imshow("out",image);
-		cv::waitKey(100);
-
 		Size sz = image.size();
 		
 		// Convert to grayscale
 		Mat1b gray;
-		cvtColor(image, gray, COLOR_BGR2GRAY);
+		cvtColor(image, gray, CV_BGR2GRAY);
 		
 		// Parameters Settings (Sect. 4.2)
 		int		iThLength = 16;

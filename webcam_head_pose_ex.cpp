@@ -33,14 +33,16 @@
 #include <dlib/image_processing/render_face_detections.h>
 #include <dlib/image_processing.h>
 #include <dlib/gui_widgets.h>
-#include <curl/curl.h>
 #include <vector>
 #include <iostream>
 #include <thread>
-#include <opencv2\imgproc.hpp>
+#include <opencv2/imgproc.hpp>
 #include <chrono>
-#include <opencv2/features2d.hpp >
+#include <opencv2/features2d.hpp>
 #include "common.h"
+
+#define LINE_AA 16
+
 #pragma comment (lib, "Normaliz.lib")
 #pragma comment (lib, "Ws2_32.lib")
 #pragma comment (lib, "Wldap32.lib")
@@ -509,7 +511,7 @@ int main()
     RotatedRect box[2];
 
     
-    image = imread("media/circles.png");
+    image = imread("media/circles.jpg");
     cv::namedWindow("out", WINDOW_AUTOSIZE);
 
     cv_image<bgr_pixel> cimg(image);
@@ -543,7 +545,7 @@ int main()
     int cols = imagec.cols;
     //cout << "cols: " << cols << endl;
     //cout << "rows: " << rows << endl;
-    struct EllipseX primary = { imagec.cols / 2, imagec.rows / 2, 95, 145, 0 };
+    struct EllipseX primary = { 1.f*imagec.cols / 2, 1.f*imagec.rows / 2, 95, 145, 0 };
     struct EllipseX secondary;
 
     while (true) {
@@ -914,14 +916,14 @@ int main()
     
     
 
-    std::thread capture(capture,&image);
-    Sleep(2000);
-    std::thread detectface(detectface, &image ,rect,box);
-    Sleep(1000);
+    std::thread CApture(capture,&image);
+    sleep(2u);
+    std::thread Detectface(detectface, &image ,rect,box);
+    sleep(1u);
     std::thread detectEyeLeft(detectEye, &image, rect+0, box+0);
-    Sleep(1000);
+    sleep(1u);
     std::thread detectEyeRight(detectEye, &image, rect+1, box+1);
-    Sleep(1000);
+    sleep(1u);
 
 
     Mat frame = imread("media/circles.png");

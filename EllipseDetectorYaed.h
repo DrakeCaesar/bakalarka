@@ -27,10 +27,9 @@ This class implements a very fast ellipse detector, codename: YAED (Yet Another 
 
 #pragma once
 
-#include <opencv2\core\core.hpp>
-#include <opencv2\imgproc\imgproc.hpp>
-#include <opencv2\features2d\features2d.hpp>
-#include <opencv2\opencv.hpp>
+// #include <cxcore.hpp>
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
 #include <stdio.h>
 #include <algorithm>
 #include <numeric>
