@@ -5,7 +5,7 @@
 #ifndef BAKALARKA_ELLIPSEDETECTOR_H
 #define BAKALARKA_ELLIPSEDETECTOR_H
 
-int ellipseDetector(char * filename);
+cv::Mat OnImage(cv::Mat matimage);
 
 #endif //BAKALARKA_ELLIPSEDETECTOR_H
 

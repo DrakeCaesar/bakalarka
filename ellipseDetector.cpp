@@ -267,22 +267,10 @@ std::tuple<float, float, float> Evaluate(const vector<Ellipse>& ellGT, const vec
 	return make_tuple(pr, re, fmeasure);
 }
 
-void OnImage(char *image_path)
+Mat OnImage(Mat matimage)
 {
-	// Check if the file provided is a valid image
-	string filename(image_path);
-	string file_basename = basename(image_path);
-	string ext = file_basename.substr(file_basename.find_last_of(".") + 1);
-	if (!((ext == "jpeg") || (ext == "jpg"))) {
-		cout << "image must be .jpeg or .jpg" << endl;
-		return;
-	}
-
-	string filename_minus_ext = filename.substr(0, filename.find_last_of("."));
-	cout << "Annotating image \"" << image_path << "\"" << endl;
-	
 	// Read image
-	Mat3b image = imread(filename);
+	Mat3b image = matimage;
 	Size sz = image.size();
 
 	// Convert to grayscale
@@ -345,7 +333,6 @@ void OnImage(char *image_path)
 
 
 	vector<Ellipse> gt;
-	LoadGT(gt, filename_minus_ext + ".txt", true); // Prasad is in radians
 
 	Mat3b resultImage = image.clone();
 
@@ -366,8 +353,9 @@ void OnImage(char *image_path)
 
 	// Show the image in a scalable window.
 	namedWindow("Annotated Image", WINDOW_NORMAL);
-	imshow("Annotated Image", resultImage);
-	waitKey();
+	return resultImage;
+	//imshow("Annotated Image", resultImage);
+	//waitKey();
 }
 
 void OnVideo()
@@ -608,24 +596,6 @@ void OnDataset()
 }
 
 
-int ellipseDetector(char * filename)
-{
-
-	char *unresolved_path = filename;
-	char *resolved_path = (char *)malloc(PATH_MAX);
-	realpath(unresolved_path, resolved_path);
-	// char *extension = (char *)malloc(20);
-	// _splitpath_s(resolved_path, NULL, 0, NULL, 0, NULL, 0, extension, 20);
-	// cout << "file extension: " << extension << endl;
-	// OnVideo();
-	OnImage(resolved_path);
-	//OnDataset();
-	free(resolved_path);
-	// free(extension);
-	return 0;
-}
-
-// Test on single image
 int main2()
 {
 	string images_folder = "D:\\SO\\img\\";
