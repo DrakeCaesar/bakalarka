@@ -23,8 +23,8 @@ last update: 23/12/2014
 #include <limits.h> /* PATH_MAX */
 #include <stdlib.h>
 #include <stdio.h>
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+//#include <opencv/cv.h>
+//#include <opencv/highgui.h>
 
 #include "EllipseDetectorYaed.h"
 #include <fstream>
@@ -411,7 +411,7 @@ void OnVideo()
 	{	
 		Mat3b image;
 		cap >> image;
-		cvtColor(image, gray, CV_BGR2GRAY);	
+		cvtColor(image, gray, CV_BGR2GRAY);
 
 			vector<Ellipse> ellsYaed;
 		Mat1b gray2 = gray.clone();

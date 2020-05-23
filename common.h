@@ -20,9 +20,24 @@ last update: 23/12/2014
 */
 
 #pragma once
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+//#include <opencv/cv.h>
+//#include <opencv/highgui.h>
 //#include "opencv2\core\internal.hpp"
+//#include <opencv4/opencv2/opencv.hpp>
+//#include <opencv4/opencv2/highgui.hpp>
+#include <opencv4/opencv2/core.hpp>
+#include <opencv4/opencv2/imgproc/imgproc.hpp>
+//#include <opencv2/core/mat.hpp>
+#include <opencv4/opencv2/core/types_c.h>
+#include <opencv4/opencv2/core/core_c.h>
+
+#include <opencv4/opencv2/imgproc/types_c.h>
+#include <opencv4/opencv2/imgproc/imgproc_c.h>
+#include <opencv4/opencv2/core/cvdef.h>
+
+
+
+
 
 
 using namespace std;

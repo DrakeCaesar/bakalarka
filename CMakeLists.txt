@@ -8,6 +8,10 @@ add_subdirectory(../dlib dlib_build)
 #set(USE_SSE2_INSTRUCTIONS ON CACHE BOOL "Use SSE2 instructions")
 #set(USE_SSE4_INSTRUCTIONS ON CACHE BOOL "Use SSE4 instructions")
 #set(USE_AVX_INSTRUCTIONS ON CACHE BOOL "Use AVX instructions")
+add_definitions( "-O3 -mavx -I" )
+
+
+
 add_executable( bakalarka
                 render_face.hpp
                 webcam_head_pose_ex.cpp
@@ -17,3 +21,4 @@ add_executable( bakalarka
                 EllipseDetectorYaed.h
         ellipseDetector.cpp ellipseDetector.h)
 target_link_libraries( bakalarka dlib::dlib ${OpenCV_LIBS} )
+
