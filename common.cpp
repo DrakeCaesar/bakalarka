@@ -22,27 +22,6 @@ last update: 23/12/2014
 #include "common.h"
 
 
-CvMat convert(Mat temp){
-    /*
-    Mat * src;
-    * src = temp;
-
-    // source image
-
-// allocate destination image of type CV_32F
-    CvMat* dst = cvCreateMat(src->rows, src->cols, CV_32FC1);
-
-// convert src image to dst image (type CV_32F)
-    cvConvertScale(src, dst, 1, 0 );
-    return * dst;
-     */
-    Mat * src;
-    * src = temp;
-    CvMat* r3 = cvCreateMat(src->rows, src->cols, CV_32FC1);
-    cvConvert(src, r3);
-    return * r3;
-}
-
 void cvCanny2(	const void* srcarr, void* dstarr,
 				double low_thresh, double high_thresh,
 				void* dxarr, void* dyarr,
@@ -344,10 +323,9 @@ void Canny2(	InputArray image, OutputArray _edges,
 	_sobel_y.create(src.size(), CV_16S);
 
 
-    CvMat c_dst = convert(_edges.getMat());
-    CvMat c_src = convert(src);
-    CvMat c_dx = convert(_sobel_x.getMat());
-	CvMat c_dy = convert(_sobel_y.getMat());
+    CvMat c_src = src, c_dst = _edges.getMat();
+	CvMat c_dx = _sobel_x.getMat();
+	CvMat c_dy = _sobel_y.getMat();
 
 
     cvCanny2(	&c_src, &c_dst, threshold1, threshold2,
@@ -1375,10 +1353,9 @@ void Canny3(	InputArray image, OutputArray _edges,
 	_sobel_y.create(src.size(), CV_16S);
 
 
-    CvMat c_src = convert(src);
-    CvMat c_dst = convert(_edges.getMat());
-    CvMat c_dx = convert(_sobel_x.getMat());
-	CvMat c_dy = convert(_sobel_y.getMat());
+    CvMat c_src = src, c_dst = _edges.getMat();
+	CvMat c_dx = _sobel_x.getMat();
+	CvMat c_dy = _sobel_y.getMat();
 
 
     cvCanny3(	&c_src, &c_dst, 

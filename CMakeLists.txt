@@ -12,13 +12,16 @@ add_definitions( "-O3 -mavx -I" )
 
 
 
-add_executable( bakalarka
-                render_face.hpp
-                webcam_head_pose_ex.cpp
-                common.cpp
-                common.h
-                EllipseDetectorYaed.cpp
-                EllipseDetectorYaed.h
-        ellipseDetector.cpp ellipseDetector.h)
+add_executable(
+    bakalarka
+    webcam_head_pose_ex.cpp
+    common.cpp
+    common.h
+    EllipseDetectorYaed.cpp
+    EllipseDetectorYaed.h
+    ellipseDetector.cpp
+    ellipseDetector.h
+)
+
 target_link_libraries( bakalarka dlib::dlib ${OpenCV_LIBS} )
 

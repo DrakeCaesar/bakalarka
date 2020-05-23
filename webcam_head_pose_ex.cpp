@@ -1,6 +1,7 @@
 #define CURL_STATICLIB
+#include "ellipseDetector.h"
+
 #include <dlib/opencv.h>
-//#include <opencv2/highgui/highgui.hpp>
 #include <dlib/image_processing/frontal_face_detector.h>
 #include <dlib/image_processing/render_face_detections.h>
 #include <dlib/image_processing.h>
@@ -9,11 +10,14 @@
 #include <iostream>
 #include <thread>
 #include <opencv4/opencv2/opencv.hpp>
+//#include <opencv/cv.h>
+//#include <opencv/highgui.h>
+
+
 #include <chrono>
 
-#include "ellipseDetector.h"
+
 //#include <opencv2/features2d.hpp>
-#include "common.h"
 
 #define LINE_AA 16
 
@@ -64,7 +68,7 @@ int capture(cv::Mat* image)
         cap >> temp;
         cv::flip(temp, *image, +1);
         if ((*image).empty())
-            cap.set(CAP_PROP_POS_FRAMES, 0);
+            cap.set(CV_CAP_PROP_POS_FRAMES, 0);
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
         unsigned int microsec = std::chrono::duration_cast<std::chrono::microseconds>  (end - begin).count();
         if (second / microsec > targetFramerate)
@@ -496,7 +500,7 @@ int main(){
          << " ms" << endl;
 
 
-    return 0;
+    //return 0;
 
     //imshow("Annotated Image", resultImage);
     /*

@@ -22,13 +22,14 @@ last update: 23/12/2014
 //#include <cv.hpp>
 #include <limits.h> /* PATH_MAX */
 #include <stdlib.h>
-#include <stdio.h>
+//#include <stdio.h>
 //#include <opencv/cv.h>
 //#include <opencv/highgui.h>
 
 #include "EllipseDetectorYaed.h"
 #include <fstream>
-
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
 
 using namespace std;
 using namespace cv;
@@ -354,8 +355,7 @@ Mat OnImage(Mat matimage)
 	// Show the image in a scalable window.
 	namedWindow("Annotated Image", WINDOW_NORMAL);
 	return resultImage;
-	//imshow("Annotated Image", resultImage);
-	//waitKey();
+
 }
 
 void OnVideo()
@@ -411,7 +411,7 @@ void OnVideo()
 	{	
 		Mat3b image;
 		cap >> image;
-		cvtColor(image, gray, CV_BGR2GRAY);
+		cvtColor(image, gray, CV_BGR2GRAY);	
 
 			vector<Ellipse> ellsYaed;
 		Mat1b gray2 = gray.clone();
@@ -594,6 +594,7 @@ void OnDataset()
 
 	getchar();
 }
+
 
 
 int main2()
