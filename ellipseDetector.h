@@ -6,9 +6,9 @@
 #define BAKALARKA_ELLIPSEDETECTOR_H
 
 //#include <opencv4/opencv2/core/core.hpp>
-//#include <opencv/cv.h>
-//#include <opencv/highgui.h>
-#include <opencv4/opencv2/opencv.hpp>
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
+//#include <opencv4/opencv2/opencv.hpp>
 cv::Mat OnImage(cv::Mat matimage);
 
 

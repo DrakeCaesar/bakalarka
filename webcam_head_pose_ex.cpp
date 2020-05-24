@@ -9,9 +9,9 @@
 #include <vector>
 #include <iostream>
 #include <thread>
-#include <opencv4/opencv2/opencv.hpp>
-//#include <opencv/cv.h>
-//#include <opencv/highgui.h>
+//#include <opencv4/opencv2/opencv.hpp>
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
 
 
 #include <chrono>
