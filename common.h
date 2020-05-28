@@ -20,7 +20,8 @@ last update: 23/12/2014
 */
 
 #pragma once
-#include_next  <opencv/cv.h>
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
 //#include <opencv4/opencv2/core/core_c.h>
 //#include <opencv4/opencv2/opencv.hpp>
 //#include "opencv2\core\internal.hpp"

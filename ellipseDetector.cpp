@@ -28,8 +28,7 @@ last update: 23/12/2014
 
 #include "EllipseDetectorYaed.h"
 #include <fstream>
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+
 
 using namespace std;
 using namespace cv;
