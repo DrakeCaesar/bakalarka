@@ -11,6 +11,14 @@
 #include <chrono>
 #include <sys/ioctl.h>
 
+#include <thread>
+#include <mutex>
+#include <queue>
+#include <atomic>
+
+
+
+
 #define LINE_AA 16
 
 #pragma comment (lib, "Normaliz.lib")
@@ -23,108 +31,13 @@ using namespace dlib;
 using namespace cv;
 using namespace std;
 
-#define NUM_THREADS 254
+std::mutex mtxCam;
+std::atomic<bool> grabOn; //this is lock free
+std::queue<Mat> buffer;
 
-int handleError( int status, const char* func_name,
-                 const char* err_msg, const char* file_name,
-                 int line, void* userdata )
+[[noreturn]] int capture(cv::Mat* image)
 {
-    //Do nothing -- will suppress console output
-    return 0;   //Return value is not used
-}
-cv::VideoCapture capup;
-void *wait(void *t) {
-    int i;
-    long tid;
-    tid = (long)t;
 
-    const std::string leftAddr = "http://192.168.1.";
-    const std::string rightAddr = ":8080/video";
-
-    std::string Addr = leftAddr + to_string(2+(long)t) + rightAddr;
-    cv::VideoCapture cap;
-    //cout << Addr + "\n";
-
-    //cv::redirectError(handleError);
-    //try {
-        if (cap.open(Addr)) {
-            std::cout << "Opened video stream at " << Addr << std::endl;
-            capup = cap;
-        }
-    //}catch (...) {  }
-
-    pthread_exit(NULL);
-
-}
-
-int capture(cv::Mat* image)
-{
-    const std::string videoStreamAddress = "http://192.168.1.13:8080/video";
-    cv::VideoCapture cap;
-    /*
-    int rc;
-    pthread_t threads[NUM_THREADS];
-    pthread_attr_t attr;
-    void *status;
-
-    // Initialize and set thread joinable
-    pthread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-
-    for(long i = 0; i < NUM_THREADS; i++ ) {
-        rc = pthread_create(&threads[i], &attr, wait, (void *)i );
-        if (rc) {
-            cout << "Error:unable to create thread," << rc << endl;
-            exit(-1);
-        }
-    }
-    int seconds = 0;
-    while (!capup.isOpened()){
-        sleep(1u);
-        if (++seconds ==5)
-            break;
-    }
-    pthread_attr_destroy(&attr);
-    for(int i = 0; i < NUM_THREADS; i++ ) {
-        pthread_cancel(threads[i]);
-    }
-    if (capup.isOpened())
-        cout << "capture opened\n";
-    else {
-        cout << "capture not opened\n";
-        pthread_exit(NULL);
-    }
-    cout << "Main: program exiting." << endl;
-    //pthread_exit(NULL);
-
-    cap = capup;
-    */
-    const unsigned int targetFramerate = 30;
-    const unsigned int second = 1000000;
-    const unsigned int targetFrameTime = second / targetFramerate;
-
-    if (!cap.open(videoStreamAddress)) {
-        std::cout << "Error opening video stream or file" << std::endl;
-        return -1;
-    }
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-
-    while (true) {
-        cv::Mat temp;
-
-        //temp = imread("media/circles.png",1);
-        cap >> temp;
-        cv::flip(temp, *image, +1);
-        if ((*image).empty())
-            cap.set(CV_CAP_PROP_POS_FRAMES, 0);
-        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-        unsigned int microsec = std::chrono::duration_cast<std::chrono::microseconds>  (end - begin).count();
-        if (second / microsec > targetFramerate)
-            std::this_thread::sleep_for(std::chrono::microseconds(targetFrameTime - microsec));
-        begin = std::chrono::steady_clock::now();
-        imshow("Image", *image);
-        //waitKey(0);
-    }
 }
 int min(int x, int y) {
     if (x < y)
@@ -137,61 +50,64 @@ int max(int x, int y) {
     return y;
 }
 
-void detectface(cv::Mat* image, cv::Rect rect[], RotatedRect* box)
+void detectface(cv::Mat* image, cv::Rect rect[])
 {
+    *image = imread("media/circles.png");
+    return;
     frontal_face_detector detector = get_frontal_face_detector();
     shape_predictor pose_model;
     deserialize("shape_predictor_68_face_landmarks.dat") >> pose_model;
     image_window win;
-    while (!(*image).empty() && !win.is_closed()) {
-        cv::Mat dst;
-        cv::resize(* image, dst, cv::Size((*image).cols/4,(*image).rows/4));
-        //cv::flip(dst, dst, +1);
-        cv_image<bgr_pixel> cimg(dst);
-        std::vector<dlib::rectangle> faces = detector(cimg);
-        std::vector<full_object_detection> shapes;
-        //cv::Rect rect[2];
-        for (unsigned long i = 0; i < faces.size(); ++i)
-        {
-            shapes.push_back(pose_model(cimg, faces[i]));
-            for (int j = 0; j <= 1; j++) {
-                int x1 = INT_MAX, y1 = INT_MAX;
-                int x2 = 0, y2 = 0;
-                for (int k = 0; k < 6; k++) {
-                    x1 = min(x1, shapes[i].part(36 + j*6 + k).x());
-                    x2 = max(x2, shapes[i].part(36 + j*6 + k).x());
-                    y1 = min(y1, shapes[i].part(36 + j*6 + k).y());
-                    y2 = max(y2, shapes[i].part(36 + j*6 + k).y());
-                }
-                rect[j] = cv::Rect(x1, y1 - .5*(y2 - y1), x2 - x1, 2*(y2 - y1));
-                
-                cv::rectangle(dst, rect[j], cv::Scalar(0, 255, 0));
+    //while (!(*image).empty() && !win.is_closed()) {
+    cv::Mat dst;
+    //cv::resize(* image, dst, cv::Size((*image).cols/4,(*image).rows/4));
+    //cv::flip(dst, dst, +1);
+    cv_image<bgr_pixel> cimg(dst);
+    std::vector<dlib::rectangle> faces = detector(cimg);
+    std::vector<full_object_detection> shapes;
+    //cv::Rect rect[2];
+    for (unsigned long i = 0; i < faces.size(); ++i)
+    {
+        shapes.push_back(pose_model(cimg, faces[i]));
+        for (int j = 0; j < 2; j++) {
+            int x1 = INT_MAX, y1 = INT_MAX;
+            int x2 = 0, y2 = 0;
+
+            for (int k = 0; k < 6; k++) {
+                x1 = min(x1, shapes[i].part(36 + j*6 + k).x());
+                x2 = max(x2, shapes[i].part(36 + j*6 + k).x());
+                y1 = min(y1, shapes[i].part(36 + j*6 + k).y());
+                y2 = max(y2, shapes[i].part(36 + j*6 + k).y());
             }
-            win.clear_overlay();
+            rect[j] = cv::Rect(x1, y1 - .5*(y2 - y1), x2 - x1, 2*(y2 - y1));
 
-            win.add_overlay(render_face_detections(shapes));
+            cv::rectangle(dst, rect[j], cv::Scalar(0, 255, 0));
         }
+        win.clear_overlay();
 
-        /*
-        for (int i = 0; i < 2; i++) {
-            if (MAX(box[i].size.width, box.size.height) > MIN(box[i].size.width, box.size.height) * 30)
-                continue;
-
-            ellipse(cimg, box[i], Scalar(0, 0, 255), 1, LINE_AA);
-            ellipse(cimg, box[i].center, box[i].size * 0.5f, box[i].angle, 0, 360, Scalar(0, 255, 255), 1, LINE_AA);
-            Point2f vtx[4];
-            box.points(vtx);
-            for (int j = 0; j < 4; j++)
-                cv::line(cimg, vtx[j], vtx[(j + 1) % 4], Scalar(0, 255, 0), 1, LINE_AA);
-        }
-        
-        */
-
-
-
-        win.set_image(cimg);
-        //cout << rect[0];
+        win.add_overlay(render_face_detections(shapes));
     }
+
+    /*
+    for (int i = 0; i < 2; i++) {
+        if (MAX(box[i].size.width, box.size.height) > MIN(box[i].size.width, box.size.height) * 30)
+            continue;
+
+        ellipse(cimg, box[i], Scalar(0, 0, 255), 1, LINE_AA);
+        ellipse(cimg, box[i].center, box[i].size * 0.5f, box[i].angle, 0, 360, Scalar(0, 255, 255), 1, LINE_AA);
+        Point2f vtx[4];
+        box.points(vtx);
+        for (int j = 0; j < 4; j++)
+            cv::line(cimg, vtx[j], vtx[(j + 1) % 4], Scalar(0, 255, 0), 1, LINE_AA);
+    }
+
+    */
+
+
+
+    win.set_image(cimg);
+    //cout << rect[0];
+    //}
 }
 void normalize(cv::Rect* rect, int x, int y) {
     if ((*rect).x < 0)
@@ -218,7 +134,7 @@ bool compareContourAreas(std::vector<cv::Point> contour1, std::vector<cv::Point>
     return (i < j);
 }
 
-void detectEye(cv::Mat * image, cv::Rect * rect, RotatedRect * boxpointer){
+[[noreturn]] void detectEye(cv::Mat * image, cv::Rect * rect){
     image_window win;
     int factor1 = 4;
     int factor2 = 2;
@@ -254,21 +170,12 @@ void detectEye(cv::Mat * image, cv::Rect * rect, RotatedRect * boxpointer){
             }
         }
         */
-        cv_image<bgr_pixel> cimg(croppedImage);
 
+        cv_image<bgr_pixel> cimg(croppedImage);
         win.set_image(cimg);
         cvtColor(croppedImage, croppedImage, COLOR_BGR2GRAY);
-
         medianBlur(croppedImage, croppedImage, 5);
-
         equalizeHist(croppedImage, croppedImage);
-
-
-
-  
-
-
-
         //Mat render = croppedImage.clone();
         inRange(croppedImage, 0, sliderPos, croppedImage);
 
@@ -281,81 +188,9 @@ void detectEye(cv::Mat * image, cv::Rect * rect, RotatedRect * boxpointer){
         //morphologyEx(croppedImage, croppedImage, MORPH_CLOSE, getStructuringElement(MORPH_ELLIPSE, Size(7, 7)));
 
         //morphologyEx(croppedImage, croppedImage, MORPH_OPEN, getStructuringElement(MORPH_ELLIPSE, Size(25, 25)));
-        std::vector<std::vector<Point> > contours;
-        //Mat bimage = croppedImage >= sliderPos;
-        /*
-        for (int x = 4; x < croppedImage.cols-5; x++) {
-            bool black = true;
-            int white = 0;
-            //cout << +croppedImage.channels() << endl;
-            if (croppedImage.channels() != 0)
-                for (int y = croppedImage.rows -5 ; y >=4 ; y--) {
-                    
-                    
-                    //if (croppedImage.at<Vec3b>(y, x)[0] != 0)
-                    //    croppedImage.at<Vec3b>(y, x)[0] = 255;
-                    
-                    
-                    //if (croppedImage.at<Vec3b>(y, x)[0] != 255 && croppedImage.at<Vec3b>(y, x)[0] != 0)
-                        //cout << +croppedImage.at<Vec3b>(y, x)[0] << endl;
-                    if (black) {
-                        if (croppedImage.at<Vec3b>(y, x)[0] == 255) {
-                            black = false;
-                            white = 1;
-                        }
-                    }
-                    else if (white > 0) {
-                        if (croppedImage.at<Vec3b>(y, x)[0] == 0) {
-                            white--;
 
-                        }
-                    }
-                    else
-                        croppedImage.at<Vec3b>(y, x)[0] = 0;
-                    
-                }
-        }
-        */
-        Mat bimage = croppedImage.clone();
-        findContours(bimage, contours, RETR_TREE, CHAIN_APPROX_NONE);
-        Mat cimage = Mat::zeros(bimage.size(), CV_8UC3);
-        // cimage = croppedImage.clone();
 
         cvtColor(render, render, COLOR_GRAY2BGR);
-        int i = contours.size() - 1;
-        if (i ==  -1)
-            continue;
-        size_t count = contours[i].size();
-        if (count < 6)
-            continue;
-        std::sort(contours.begin(), contours.end(), compareContourAreas);
-        std::vector<cv::Point> biggestContour = contours[contours.size() - 1];
-
-
-        Mat pointsf;
-        Mat(contours[i]).convertTo(pointsf, CV_32F);
-
-
-        //RotatedRect box = minAreaRect(Mat(contours[i]));
-        
-
-
-
-        RotatedRect box = fitEllipse(pointsf);
-        *boxpointer = box;
-        if (MAX(box.size.width, box.size.height) > MIN(box.size.width, box.size.height) * 30)
-            continue;
-        drawContours(render, contours, (int)i, Scalar::all(255), 1, 8);
-
-        ellipse(render, box, Scalar(0, 0, 255), 1, LINE_AA);
-        ellipse(render, box.center, box.size * 0.5f, box.angle, 0, 360, Scalar(0, 255, 255), 1, LINE_AA);
-        Point2f vtx[4];
-        box.points(vtx);
-        for (int j = 0; j < 4; j++)
-            cv::line(render, vtx[j], vtx[(j + 1) % 4], Scalar(0, 255, 0), 1, LINE_AA);
-        
-        //
-        //cv_image<bgr_pixel> cimg1(cimage);
         
         cv_image<bgr_pixel> cimg1(render);
         win1.set_image(cimg1);
@@ -376,20 +211,201 @@ int random(int top) {
     return (std::rand() % top - top)*2;
 }
 
+int totalFrames = 0;
+
+void GrabThread(VideoCapture *cap)
+{
+    Mat tmp;
+
+    //To know how many memory blocks will be allocated to store frames in the queue.
+    //Even if you grab N frames and create N x Mat in the queue
+    //only few real memory blocks will be allocated
+    //thanks to std::queue and cv::Mat memory recycling
+    std::map<unsigned char*, int> matMemoryCounter;
+    uchar * frameMemoryAddr;
+    while (grabOn.load() == true) //this is lock free
+    {
+        //grab will wait for cam FPS
+        //keep grab out of lock so that
+        //idle time can be used by other threads
+        *cap >> tmp; //this will wait for cam FPS
+
+        if (tmp.empty()) continue;
+
+        //get lock only when we have a frame
+        mtxCam.lock();
+        totalFrames++;
+        //buffer.push(tmp) stores item by reference than avoid
+        //this will create a new cv::Mat for each grab
+        buffer.push(Mat(tmp.size(), tmp.type()));
+        tmp.copyTo(buffer.back());
+        frameMemoryAddr = buffer.front().data;
+        mtxCam.unlock();
+        //count how many times this memory block has been used
+        matMemoryCounter[frameMemoryAddr]++;
+    }
+    std::cout << std::endl << "Number of Mat in memory: " << matMemoryCounter.size();
+}
+
+void ProcessFrame(Mat &src,int bufSize)
+{
+    Rect eyes[2];
+    //if(bufSize > 1 ) return;
+    if(/*bufSize > 1 || */src.empty()) return;
+
+    //cv::resize(src, src, cv::Size((src).cols/8,(src).rows/8));
+    //putText( const_cast<const decltype(src)>(src) , "PROC FRAME", Point(10, 10), CV_FONT_HERSHEY_PLAIN, 1, Scalar(0, 255, 0));
+    detectface(const_cast<const decltype(&src)>(&src),eyes);
+    //imshow("Image main", src);
+}
 
 
+void framerate(std::string msg)
+{
+    while(1)
+    {
+    int old = totalFrames;
+    sleep(1u);
+    int curr = totalFrames;
+    std::cout << curr - old << " fps" << endl;
+    }
+    std::cout << "task1 says: " << msg;
+}
 
+int main() {
+
+    Mat frame;
+    VideoCapture cap;
+
+    //const std::string videoStreamAddress = "http://192.168.1.31:8080/video";
+    //const std::string videoStreamAddress = "http://192.168.1.100:8080/video";
+    const std::string videoStreamAddress = "http://192.168.42.129:8080/video";
+
+    cap.open(videoStreamAddress);
+    if (!cap.isOpened()) //check if we succeeded
+        return -1;
+
+    grabOn.store(true);                //set the grabbing control variable
+    thread t(GrabThread, &cap);          //start the grabbing thread
+    int bufSize;
+    //std::thread t1(framerate,"hmm");
+    while (true)
+    {
+        mtxCam.lock();                //lock memory for exclusive access
+        bufSize = buffer.size();      //check how many frames are waiting
+        if (bufSize > 0)              //if some
+        {
+            //reference to buffer.front() should be valid after
+            //pop because of Mat memory reference counting
+            //but if content can change after unlock is better to keep a copy
+            //an alternative is to unlock after processing (this will lock grabbing)
+            buffer.front().copyTo(frame);   //get the oldest grabbed frame (queue=FIFO)
+            buffer.pop();            //release the queue item
+        }
+        mtxCam.unlock();            //unlock the memory
+
+        if (bufSize > 0)            //if a new frame is available
+        {
+            ProcessFrame(frame, bufSize);    //process it
+            bufSize--;
+        }
+
+        //if bufSize is increasing means that process time is too slow regards to grab time
+        //may be you will have out of memory soon
+        if (bufSize)
+            cout << endl << "frames to process:" << bufSize;
+
+        if (waitKey(1) >= 0)        //press any key to terminate
+        {
+            grabOn.store(false);    //stop the grab loop
+            t.join();               //wait for the grab loop
+
+            cout << endl << "Flushing buffer of:" << bufSize << " frames...";
+            while (!buffer.empty())    //flushing the buffer
+            {
+                frame = buffer.front();
+                ProcessFrame(frame, bufSize);
+                buffer.pop();
+            }
+            cout << "done"<<endl;
+            break; //exit from process loop
+        }
+    }
+    cout << endl << "Press Enter to terminate"; cin.get();
+    return 0;
+}
+
+
+/*
 int main(){
 
 
 
 
     //ellipseDetector((char *)"media/circles.jpg");
-    const int grid = 5;
-    
+
     cv::Mat image;
     cv::Rect rect[2];
-    RotatedRect box[2];
+
+
+    const std::string videoStreamAddress = "http://192.168.1.31:8080/video";
+    cv::VideoCapture cap;
+    const unsigned int targetFramerate = 10;
+    const unsigned int second = 1000000;
+    const unsigned int targetFrameTime = second / targetFramerate;
+
+    if (!cap.open(videoStreamAddress)) {
+        std::cout << "Error opening video stream or file" << std::endl;
+        return -1;
+    }
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    cout << "running" << endl;
+    int i = 0;
+    //cap.set(CV_CAP_PROP_POS_FRAMES, 0);
+
+    while (cap.isOpened()) {
+        //cout << "iteration " << ++ i << endl;
+        //cap.set(CV_CAP_PROP_POS_FRAMES, cap.get(CV_CAP_PROP_FRAME_COUNT));
+        //cap.release();
+        cv::Mat temp;
+        //cap.open("cap.open(videoStreamAddress)");//Insert own url
+        cap >> temp;
+        cv::flip(temp, image, +1);
+        //std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+        //unsigned int microsec = std::chrono::duration_cast<std::chrono::microseconds>  (end - begin).count();
+        //if (second / microsec > targetFramerate)
+        //    std::this_thread::sleep_for(std::chrono::microseconds(targetFrameTime - microsec));
+        //begin = std::chrono::steady_clock::now();
+        imshow("TestImage", image);
+        //cout << cap.get(CV_CAP_PROP_FRAME_COUNT) << endl;
+        waitKey(1);
+    }
+    /*
+    {
+        VideoCapture cap;
+        // open the default camera, use something different from 0 otherwise;
+        // Check VideoCapture documentation.
+        if(!cap.open(0))
+            return 0;
+        for(;;)
+        {
+            Mat frame;
+            cap >> frame;
+            if( frame.empty() ) break; // end of video stream
+            imshow("this is you, smile! :)", frame);
+            if( waitKey(10) == 27 ) break; // stop capturing by pressing ESC
+        }
+        // the camera will be closed automatically upon exit
+        // cap.close();
+        return 0;
+    }
+    */
+
+
+
+
+
+
     /*
 
 
@@ -447,17 +463,16 @@ int main(){
 
     
 
-    std::thread Capture(capture,&image);
 
-    sleep(2u);
-    std::thread Detectface(detectface, &image ,rect,box);
+    //sleep(2u);
+    //std::thread Detectface(detectface, &image ,rect);
+    //sleep(2u);
+    /*
+    std::thread detectEyeLeft(detectEye, &image, rect+1);
     sleep(1u);
-
-    std::thread detectEyeLeft(detectEye, &image, rect+0, box+0);
+    std::thread detectEyeRight(detectEye, &image, rect+0);
     sleep(1u);
-    std::thread detectEyeRight(detectEye, &image, rect+1, box+1);
-    sleep(1u);
-
+    */
     /*
     //Mat frame = imread("media/circles.png");
     //cv::namedWindow("frame", WINDOW_AUTOSIZE);
@@ -465,9 +480,6 @@ int main(){
     cv::createTrackbar("threshold", "frame", &sliderPos, 255);
     cv::createTrackbar("alpha", "frame", &alpha, 100);
     cv::createTrackbar("beta", "frame", &betaa, 200);
-     */
-    while (true) {
-        cv::waitKey(0);
-    }
-}
 
+}
+*/
