@@ -10,14 +10,10 @@
 #include <thread>
 #include <chrono>
 #include <sys/ioctl.h>
-
 #include <thread>
 #include <mutex>
 #include <queue>
 #include <atomic>
-
-
-
 
 #define LINE_AA 16
 
@@ -35,10 +31,11 @@ std::mutex mtxCam;
 std::atomic<bool> grabOn; //this is lock free
 std::queue<Mat> buffer;
 
-[[noreturn]] int capture(cv::Mat* image)
-{
+frontal_face_detector detector = get_frontal_face_detector();
+shape_predictor pose_model;
+image_window win;
+image_window win1;
 
-}
 int min(int x, int y) {
     if (x < y)
         return x;
@@ -50,29 +47,26 @@ int max(int x, int y) {
     return y;
 }
 
-void detectface(cv::Mat* image, cv::Rect rect[])
+int detectface(cv::Mat * image, cv::Rect rect[])
 {
-    *image = imread("media/circles.png");
-    return;
-    frontal_face_detector detector = get_frontal_face_detector();
-    shape_predictor pose_model;
-    deserialize("shape_predictor_68_face_landmarks.dat") >> pose_model;
-    image_window win;
-    //while (!(*image).empty() && !win.is_closed()) {
-    cv::Mat dst;
-    //cv::resize(* image, dst, cv::Size((*image).cols/4,(*image).rows/4));
-    //cv::flip(dst, dst, +1);
-    cv_image<bgr_pixel> cimg(dst);
+    bool debug = false;
+    cv::Mat resize, flip, grey, test;
+    cv::cvtColor(* image, grey, COLOR_BGR2GRAY);
+    cv::resize(grey, resize, cv::Size(grey.cols/8,grey.rows/8));
+    //cv::flip(resize, flip, +1);
+    dlib::array2d<unsigned char> cimg, cimg1;
+    dlib::assign_image(cimg, dlib::cv_image<unsigned char>(resize));
+    if (debug){
+        cv::cvtColor(resize, test, COLOR_GRAY2BGR);
+    }
     std::vector<dlib::rectangle> faces = detector(cimg);
     std::vector<full_object_detection> shapes;
-    //cv::Rect rect[2];
     for (unsigned long i = 0; i < faces.size(); ++i)
     {
         shapes.push_back(pose_model(cimg, faces[i]));
         for (int j = 0; j < 2; j++) {
             int x1 = INT_MAX, y1 = INT_MAX;
             int x2 = 0, y2 = 0;
-
             for (int k = 0; k < 6; k++) {
                 x1 = min(x1, shapes[i].part(36 + j*6 + k).x());
                 x2 = max(x2, shapes[i].part(36 + j*6 + k).x());
@@ -80,34 +74,20 @@ void detectface(cv::Mat* image, cv::Rect rect[])
                 y2 = max(y2, shapes[i].part(36 + j*6 + k).y());
             }
             rect[j] = cv::Rect(x1, y1 - .5*(y2 - y1), x2 - x1, 2*(y2 - y1));
-
-            cv::rectangle(dst, rect[j], cv::Scalar(0, 255, 0));
+            if (debug) {
+                cv::rectangle(test, rect[j], cv::Scalar(0, 255, 0));
+            }
         }
-        win.clear_overlay();
-
-        win.add_overlay(render_face_detections(shapes));
+        if (debug) {
+            win.clear_overlay();
+            win.add_overlay(render_face_detections(shapes));
+        }
     }
-
-    /*
-    for (int i = 0; i < 2; i++) {
-        if (MAX(box[i].size.width, box.size.height) > MIN(box[i].size.width, box.size.height) * 30)
-            continue;
-
-        ellipse(cimg, box[i], Scalar(0, 0, 255), 1, LINE_AA);
-        ellipse(cimg, box[i].center, box[i].size * 0.5f, box[i].angle, 0, 360, Scalar(0, 255, 255), 1, LINE_AA);
-        Point2f vtx[4];
-        box.points(vtx);
-        for (int j = 0; j < 4; j++)
-            cv::line(cimg, vtx[j], vtx[(j + 1) % 4], Scalar(0, 255, 0), 1, LINE_AA);
+    if (debug) {
+        cv_image<bgr_pixel> cimg1(test);
+        win.set_image(cimg1);
     }
-
-    */
-
-
-
-    win.set_image(cimg);
-    //cout << rect[0];
-    //}
+    return faces.size();
 }
 void normalize(cv::Rect* rect, int x, int y) {
     if ((*rect).x < 0)
@@ -128,74 +108,64 @@ int sliderPos = 50;// 80;
 int alpha = 40; /*< Simple contrast control Enter the alpha value [1.0-3.0]: 2.2 */
 int betaa = 0;       /*< Simple brightness control Enter the beta value [0-100]: 50 */
 
-bool compareContourAreas(std::vector<cv::Point> contour1, std::vector<cv::Point> contour2) {
-    double i = fabs(contourArea(cv::Mat(contour1)));
-    double j = fabs(contourArea(cv::Mat(contour2)));
-    return (i < j);
-}
 
-[[noreturn]] void detectEye(cv::Mat * image, cv::Rect * rect){
-    image_window win;
-    int factor1 = 4;
+
+void detectEye(cv::Mat * image, cv::Rect * rect){
+    int factor1 = 8;
     int factor2 = 2;
     cv::Rect scaledRect;
-    image_window win1;
-    while (true) {
-    
-        if ((*rect).width == 0)
-            continue;
-        scaledRect.x = (*rect).x * factor1 * factor2;
-        scaledRect.y = (*rect).y * factor1 * factor2;
-        scaledRect.width = (*rect).width * factor1 * factor2;
-        scaledRect.height = (*rect).height * factor1 * factor2;
-        cv::Mat croppedImage = (*image).clone();
-        cv::resize(croppedImage, croppedImage, cv::Size((*image).cols * factor2, (*image).rows * factor2));
-        normalize(&scaledRect, (croppedImage).cols, (croppedImage).rows);
 
-        croppedImage = croppedImage(scaledRect).clone();
-        /*
-        scaledRect.height = (*rect).height * factor;
-        cv::Mat croppedImage = (*image)(scaledRect).clone();
-        cv::resize(croppedImage, croppedImage, cv::Size((*image).cols * 4, (*image).rows * 4));
-        normalize(&scaledRect, (croppedImage).cols, (croppedImage).rows);
-        croppedImage = (croppedImage)(scaledRect).clone();
-        */
-        
-        /*
-        for (int y = 0; y < croppedImage.rows; y++) {
-            for (int x = 0; x < croppedImage.cols; x++) {
-                for (int c = 0; c < croppedImage.channels(); c++) {
-                    croppedImage.at<Vec3b>(y, x)[c] = saturate_cast<uchar>(.1 * alpha * croppedImage.at<Vec3b>(y, x)[c] + beta - 100);
-                }
+    scaledRect.x = (*rect).x * factor1 * factor2;
+    scaledRect.y = (*rect).y * factor1 * factor2;
+    scaledRect.width = (*rect).width * factor1 * factor2;
+    scaledRect.height = (*rect).height * factor1 * factor2;
+    cv::Mat croppedImage = (*image).clone();
+    cv::resize(croppedImage, croppedImage, cv::Size((*image).cols * factor2, (*image).rows * factor2));
+    normalize(&scaledRect, (croppedImage).cols, (croppedImage).rows);
+
+    croppedImage = croppedImage(scaledRect).clone();
+    /*
+    scaledRect.height = (*rect).height * factor;
+    cv::Mat croppedImage = (*image)(scaledRect).clone();
+    cv::resize(croppedImage, croppedImage, cv::Size((*image).cols * 4, (*image).rows * 4));
+    normalize(&scaledRect, (croppedImage).cols, (croppedImage).rows);
+    croppedImage = (croppedImage)(scaledRect).clone();
+    */
+
+    /*
+    for (int y = 0; y < croppedImage.rows; y++) {
+        for (int x = 0; x < croppedImage.cols; x++) {
+            for (int c = 0; c < croppedImage.channels(); c++) {
+                croppedImage.at<Vec3b>(y, x)[c] = saturate_cast<uchar>(.1 * alpha * croppedImage.at<Vec3b>(y, x)[c] + beta - 100);
             }
         }
-        */
-
-        cv_image<bgr_pixel> cimg(croppedImage);
-        win.set_image(cimg);
-        cvtColor(croppedImage, croppedImage, COLOR_BGR2GRAY);
-        medianBlur(croppedImage, croppedImage, 5);
-        equalizeHist(croppedImage, croppedImage);
-        //Mat render = croppedImage.clone();
-        inRange(croppedImage, 0, sliderPos, croppedImage);
-
-        auto kernel = getStructuringElement(MORPH_RECT, Size(3, 3));
-        //distanceTransform(croppedImage,croppedImage, DIST_L2, DIST_MASK_PRECISE);
-        Mat render = croppedImage.clone();
-
-        dilate(croppedImage, kernel, 2);
-        erode(croppedImage, kernel, 3);
-        //morphologyEx(croppedImage, croppedImage, MORPH_CLOSE, getStructuringElement(MORPH_ELLIPSE, Size(7, 7)));
-
-        //morphologyEx(croppedImage, croppedImage, MORPH_OPEN, getStructuringElement(MORPH_ELLIPSE, Size(25, 25)));
-
-
-        cvtColor(render, render, COLOR_GRAY2BGR);
-        
-        cv_image<bgr_pixel> cimg1(render);
-        win1.set_image(cimg1);
-
     }
+    */
+    /*
+    cv_image<bgr_pixel> cimg(croppedImage);
+    win.set_image(cimg);
+    cvtColor(croppedImage, croppedImage, COLOR_BGR2GRAY);
+    medianBlur(croppedImage, croppedImage, 5);
+    equalizeHist(croppedImage, croppedImage);
+    //Mat render = croppedImage.clone();
+    inRange(croppedImage, 0, sliderPos, croppedImage);
+
+    auto kernel = getStructuringElement(MORPH_RECT, Size(3, 3));
+    //distanceTransform(croppedImage,croppedImage, DIST_L2, DIST_MASK_PRECISE);
+    Mat render = croppedImage.clone();
+
+    dilate(croppedImage, kernel, 2);
+    erode(croppedImage, kernel, 3);
+    //morphologyEx(croppedImage, croppedImage, MORPH_CLOSE, getStructuringElement(MORPH_ELLIPSE, Size(7, 7)));
+
+    //morphologyEx(croppedImage, croppedImage, MORPH_OPEN, getStructuringElement(MORPH_ELLIPSE, Size(25, 25)));
+
+
+    cvtColor(render, render, COLOR_GRAY2BGR);
+
+    cv_image<bgr_pixel> cimg1(render);
+    win1.set_image(cimg1);
+    */
 }
 
 
@@ -250,12 +220,14 @@ void GrabThread(VideoCapture *cap)
 void ProcessFrame(Mat &src,int bufSize)
 {
     Rect eyes[2];
-    //if(bufSize > 1 ) return;
-    if(/*bufSize > 1 || */src.empty()) return;
-
+    if(bufSize > 8 ) return;
+    if(src.empty()) return;
+    //cout << "test" << endl;
     //cv::resize(src, src, cv::Size((src).cols/8,(src).rows/8));
     //putText( const_cast<const decltype(src)>(src) , "PROC FRAME", Point(10, 10), CV_FONT_HERSHEY_PLAIN, 1, Scalar(0, 255, 0));
-    detectface(const_cast<const decltype(&src)>(&src),eyes);
+    if (detectface(const_cast<const decltype(&src)>(&src),eyes)){
+        detectEye(const_cast<const decltype(&src)>(&src),eyes);
+    }
     //imshow("Image main", src);
 }
 
@@ -273,7 +245,7 @@ void framerate(std::string msg)
 }
 
 int main() {
-
+    deserialize("shape_predictor_68_face_landmarks.dat") >> pose_model;
     Mat frame;
     VideoCapture cap;
 
