@@ -32,7 +32,7 @@ std::atomic<bool> grabOn; //this is lock free
 std::queue<Mat> buffer;
 
 frontal_face_detector detector = get_frontal_face_detector();
-shape_predictor pose_model;
+shape_predictor pose_model, eyes_model;
 image_window win;
 image_window win1;
 
@@ -45,6 +45,49 @@ int max(int x, int y) {
     if (x > y)
         return x;
     return y;
+}
+
+int detectEyes(cv::Mat * image, cv::Rect rect[])
+{
+    bool debug = false;
+    cv::Mat resize, flip, grey, test;
+    cv::cvtColor(* image, grey, COLOR_BGR2GRAY);
+    cv::resize(grey, resize, cv::Size(grey.cols/8,grey.rows/8));
+    //cv::flip(resize, flip, +1);
+    dlib::array2d<unsigned char> cimg, cimg1;
+    dlib::assign_image(cimg, dlib::cv_image<unsigned char>(resize));
+    if (debug){
+        cv::cvtColor(resize, test, COLOR_GRAY2BGR);
+    }
+    std::vector<dlib::rectangle> faces = detector(cimg);
+    std::vector<full_object_detection> shapes;
+    for (unsigned long i = 0; i < faces.size(); ++i)
+    {
+        shapes.push_back(eyes_model(cimg, faces[i]));
+        for (int j = 0; j < 2; j++) {
+            int x1 = INT_MAX, y1 = INT_MAX;
+            int x2 = 0, y2 = 0;
+            for (int k = 0; k < 6; k++) {
+                x1 = min(x1, shapes[i].part(0 + j*6 + k).x());
+                x2 = max(x2, shapes[i].part(0 + j*6 + k).x());
+                y1 = min(y1, shapes[i].part(0 + j*6 + k).y());
+                y2 = max(y2, shapes[i].part(0 + j*6 + k).y());
+            }
+            rect[j] = cv::Rect(x1, y1 - .5*(y2 - y1), x2 - x1, 2*(y2 - y1));
+            if (debug) {
+                cv::rectangle(test, rect[j], cv::Scalar(0, 0, 255));
+            }
+        }
+        if (debug) {
+            win1.clear_overlay();
+            //win1.add_overlay(render_face_detections(shapes));
+        }
+    }
+    if (debug) {
+        cv_image<bgr_pixel> cimg1(test);
+        win1.set_image(cimg1);
+    }
+    return faces.size();
 }
 
 int detectface(cv::Mat * image, cv::Rect rect[])
@@ -80,7 +123,7 @@ int detectface(cv::Mat * image, cv::Rect rect[])
         }
         if (debug) {
             win.clear_overlay();
-            win.add_overlay(render_face_detections(shapes));
+            //win.add_overlay(render_face_detections(shapes));
         }
     }
     if (debug) {
@@ -111,6 +154,30 @@ int betaa = 0;       /*< Simple brightness control Enter the beta value [0-100]:
 
 
 void detectEye(cv::Mat * image, cv::Rect * rect){
+    int factor1 = 8;
+    int factor2 = 2;
+    cv::Rect scaledRect;
+
+    scaledRect.x = (*rect).x * factor1;
+    scaledRect.y = (*rect).y * factor1;
+    scaledRect.width = (*rect).width * factor1;
+    scaledRect.height = (*rect).height * factor1;
+    normalize(&scaledRect, (* image).cols, (* image).rows);
+    cv::Mat croppedImage = (* image)(scaledRect);
+    cv:: Mat grey, blur, hist;
+    cvtColor(croppedImage, grey, COLOR_BGR2GRAY);
+    medianBlur(grey, blur, 5);
+    equalizeHist(blur, hist);
+
+
+
+
+    //cv_image<bgr_pixel> cimg(blur);
+    //win.set_image(hist);
+    //win.set_image(hist);
+
+    /*
+
     int factor1 = 8;
     int factor2 = 2;
     cv::Rect scaledRect;
@@ -166,6 +233,8 @@ void detectEye(cv::Mat * image, cv::Rect * rect){
     cv_image<bgr_pixel> cimg1(render);
     win1.set_image(cimg1);
     */
+
+
 }
 
 
@@ -216,18 +285,37 @@ void GrabThread(VideoCapture *cap)
     }
     std::cout << std::endl << "Number of Mat in memory: " << matMemoryCounter.size();
 }
-
+int duration = 0;
+int duration1 = 0;
 void ProcessFrame(Mat &src,int bufSize)
 {
+    //return;
     Rect eyes[2];
+
     if(bufSize > 8 ) return;
     if(src.empty()) return;
+    detectEyes(const_cast<const decltype(&src)>(&src),eyes);
     //cout << "test" << endl;
     //cv::resize(src, src, cv::Size((src).cols/8,(src).rows/8));
     //putText( const_cast<const decltype(src)>(src) , "PROC FRAME", Point(10, 10), CV_FONT_HERSHEY_PLAIN, 1, Scalar(0, 255, 0));
-    if (detectface(const_cast<const decltype(&src)>(&src),eyes)){
-        detectEye(const_cast<const decltype(&src)>(&src),eyes);
+
+    /*
+     * Rect eyes1[1];
+    int a, b;
+    auto t3 = std::chrono::high_resolution_clock::now();
+    a = detectEyes(const_cast<const decltype(&src)>(&src),eyes1);
+    auto t4 = std::chrono::high_resolution_clock::now();
+    auto t1 = std::chrono::high_resolution_clock::now();
+    b = detectface(const_cast<const decltype(&src)>(&src),eyes1);
+    auto t2 = std::chrono::high_resolution_clock::now();
+    if (a && b) {
+        duration += std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+        duration1 += std::chrono::duration_cast<std::chrono::microseconds>(t4 - t3).count();
+        std::cout << "face: " << duration << endl;
+        std::cout << "eyes: " << duration1 << endl;
+        std::cout << "eyes/faces: " << 1.f * duration1 / duration << endl;
     }
+    */
     //imshow("Image main", src);
 }
 
@@ -246,12 +334,15 @@ void framerate(std::string msg)
 
 int main() {
     deserialize("shape_predictor_68_face_landmarks.dat") >> pose_model;
+    deserialize("eye_predictor.dat") >> eyes_model;
+
     Mat frame;
     VideoCapture cap;
 
     //const std::string videoStreamAddress = "http://192.168.1.31:8080/video";
     //const std::string videoStreamAddress = "http://192.168.1.100:8080/video";
     const std::string videoStreamAddress = "http://192.168.42.129:8080/video";
+    //const std::string videoStreamAddress = "http://10.42.0.233:8080/video";
 
     cap.open(videoStreamAddress);
     if (!cap.isOpened()) //check if we succeeded
@@ -260,7 +351,7 @@ int main() {
     grabOn.store(true);                //set the grabbing control variable
     thread t(GrabThread, &cap);          //start the grabbing thread
     int bufSize;
-    //std::thread t1(framerate,"hmm");
+    std::thread t1(framerate,"hmm");
     while (true)
     {
         mtxCam.lock();                //lock memory for exclusive access
@@ -285,7 +376,7 @@ int main() {
         //if bufSize is increasing means that process time is too slow regards to grab time
         //may be you will have out of memory soon
         if (bufSize)
-            cout << endl << "frames to process:" << bufSize;
+            cout  << "frames to process:" << bufSize << endl;
 
         if (waitKey(1) >= 0)        //press any key to terminate
         {
