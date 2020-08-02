@@ -22,10 +22,10 @@ last update: 23/12/2014
 #include "common.h"
 
 
-void cvCanny2(	const void* srcarr, void* dstarr,
-				double low_thresh, double high_thresh,
-				void* dxarr, void* dyarr,
-                int aperture_size )
+void cvCanny2(  const void* srcarr, void* dstarr,
+              double low_thresh, double high_thresh,
+              void* dxarr, void* dyarr,
+              int aperture_size )
 {
     //cv::Ptr<CvMat> dx, dy;
     cv::AutoBuffer<char> buffer;
@@ -77,6 +77,7 @@ void cvCanny2(	const void* srcarr, void* dstarr,
     //dy = cvCreateMat( size.height, size.width, CV_16SC1 );
 
 	//aperture_size = -1; //SCHARR
+
     cvSobel( src, dx, 1, 0, aperture_size );
     cvSobel( src, dy, 0, 1, aperture_size );
 
@@ -323,18 +324,32 @@ void Canny2(	InputArray image, OutputArray _edges,
 	_sobel_y.create(src.size(), CV_16S);
 
 
-    CvMat c_src = src, c_dst = _edges.getMat();
-	CvMat c_dx = _sobel_x.getMat();
-	CvMat c_dy = _sobel_y.getMat();
+    CvMat * c_src = cvCreateMat(src.size().width,src.size().height, CV_32F);
+    CvMat * c_dst = cvCreateMat(src.size().width,src.size().height, CV_8U);
+    CvMat * c_dx = cvCreateMat(src.size().width,src.size().height, CV_16S);
+    CvMat * c_dy = cvCreateMat(src.size().width,src.size().height, CV_16S);
+
+	/*
+    //CvMat c_src = src, c_dst = _edges.getMat();
+	//CvMat c_dx = _sobel_x.getMat();
+	//CvMat c_dy = _sobel_y.getMat();
+
+	Mat c_src, c_dst, c_dx, c_dy;
+    dlib::assign_image(c_src, dlib::cv_image<unsigned char>(cvIplImage(src)));
+    dlib::assign_image(c_dst, dlib::cv_image<unsigned char>(cvIplImage(_edges.getMat())));
+    dlib::assign_image(c_dx, dlib::cv_image<unsigned char>(cvIplImage(_sobel_x.getMat())));
+    dlib::assign_image(c_dy, dlib::cv_image<unsigned char>(cvIplImage(_sobel_y.getMat())));
+    */
 
 
-    cvCanny2(	&c_src, &c_dst, threshold1, threshold2,
-				&c_dx, &c_dy,
+
+    cvCanny2(	c_src, c_dst, threshold1, threshold2,
+				c_dx, c_dy,
 				apertureSize + (L2gradient ? CV_CANNY_L2_GRADIENT : 0));
 };
 
 
-void Labeling(Mat1b& image, vector<vector<Point> >& segments, int iMinLength)
+void Labeling(Mat1b& image, std::vector<std::vector<Point> >& segments, int iMinLength)
 {
 	#define RG_STACK_SIZE 2048
 
@@ -422,7 +437,7 @@ void Labeling(Mat1b& image, vector<vector<Point> >& segments, int iMinLength)
 
 				if (sp3 >= iMinLength)
 				{
-					vector<Point> component;
+                    std::vector<Point> component;
 					component.reserve(sp3);
 
 					// etichetto il punto
@@ -440,7 +455,7 @@ void Labeling(Mat1b& image, vector<vector<Point> >& segments, int iMinLength)
 
 
 
-void LabelingRect(Mat1b& image, VVP& segments, int iMinLength, vector<Rect>& bboxes)
+void LabelingRect(Mat1b& image, VVP& segments, int iMinLength, std::vector<Rect>& bboxes)
 {
 
 	#define _RG_STACK_SIZE 10000
@@ -524,7 +539,7 @@ void LabelingRect(Mat1b& image, VVP& segments, int iMinLength, vector<Rect>& bbo
 
 				if (sp3 >= iMinLength)
 				{
-					vector<Point> component;
+					std::vector<Point> component;
 
 					int iMinx, iMaxx, iMiny,iMaxy;
 					iMinx = iMaxx = stack3[0].x;
@@ -1352,14 +1367,38 @@ void Canny3(	InputArray image, OutputArray _edges,
 	_sobel_x.create(src.size(), CV_16S);
 	_sobel_y.create(src.size(), CV_16S);
 
+/*
+    //CvMat c_src = src, c_dst = _edges.getMat();
+	//CvMat c_dx = _sobel_x.getMat();
+	//CvMat c_dy = _sobel_y.getMat();
 
-    CvMat c_src = src, c_dst = _edges.getMat();
-	CvMat c_dx = _sobel_x.getMat();
-	CvMat c_dy = _sobel_y.getMat();
+    CvMat c_src, c_dst, c_dx, c_dy;
+    dlib::assign_image(c_src, dlib::cv_image<unsigned char>(cvIplImage(src)));
+    dlib::assign_image(c_dst, dlib::cv_image<unsigned char>(cvIplImage(_edges.getMat())));
+    dlib::assign_image(c_dx, dlib::cv_image<unsigned char>(cvIplImage(_sobel_x.getMat())));
+    dlib::assign_image(c_dy, dlib::cv_image<unsigned char>(cvIplImage(_sobel_y.getMat())));
+*/
+    CvMat * c_src = cvCreateMat(src.size().width,src.size().height, CV_32F);
+    CvMat * c_dst = cvCreateMat(src.size().width,src.size().height, CV_8U);
+    CvMat * c_dx = cvCreateMat(src.size().width,src.size().height, CV_16S);
+    CvMat * c_dy = cvCreateMat(src.size().width,src.size().height, CV_16S);
+
+    /*
+    //CvMat c_src = src, c_dst = _edges.getMat();
+    //CvMat c_dx = _sobel_x.getMat();
+    //CvMat c_dy = _sobel_y.getMat();
+
+    Mat c_src, c_dst, c_dx, c_dy;
+    dlib::assign_image(c_src, dlib::cv_image<unsigned char>(cvIplImage(src)));
+    dlib::assign_image(c_dst, dlib::cv_image<unsigned char>(cvIplImage(_edges.getMat())));
+    dlib::assign_image(c_dx, dlib::cv_image<unsigned char>(cvIplImage(_sobel_x.getMat())));
+    dlib::assign_image(c_dy, dlib::cv_image<unsigned char>(cvIplImage(_sobel_y.getMat())));
+    */
 
 
-    cvCanny3(	&c_src, &c_dst, 
-				&c_dx, &c_dy,
+
+    cvCanny3(	c_src, c_dst,
+				c_dx, c_dy,
 				apertureSize + (L2gradient ? CV_CANNY_L2_GRADIENT : 0));
 };
 

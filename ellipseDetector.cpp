@@ -36,7 +36,7 @@ using namespace cv;
 
 
 // Should be checked
-void SaveEllipses(const string& workingDir, const string& imgName, const vector<Ellipse>& ellipses /*, const vector<double>& times*/)
+void SaveEllipses(const string& workingDir, const string& imgName, const std::vector<Ellipse>& ellipses /*, const vector<double>& times*/)
 {
 	string path(workingDir + "/" + imgName + ".txt");
 	ofstream out(path, ofstream::out | ofstream::trunc);
@@ -63,7 +63,7 @@ void SaveEllipses(const string& workingDir, const string& imgName, const vector<
 }
 
 // Should be checked
-bool LoadTest(vector<Ellipse>& ellipses, const string& sTestFileName, vector<double>& times, bool bIsAngleInRadians = true)
+bool LoadTest(std::vector<Ellipse>& ellipses, const string& sTestFileName, std::vector<double>& times, bool bIsAngleInRadians = true)
 {
 	ifstream in(sTestFileName);
 	if (!in.good())
@@ -110,7 +110,7 @@ bool LoadTest(vector<Ellipse>& ellipses, const string& sTestFileName, vector<dou
 }
 
 
-void LoadGT(vector<Ellipse>& gt, const string& sGtFileName, bool bIsAngleInRadians = true)
+void LoadGT(std::vector<Ellipse>& gt, const string& sGtFileName, bool bIsAngleInRadians = true)
 {
 	ifstream in(sGtFileName);
 	if (!in.good())
@@ -161,7 +161,7 @@ bool TestOverlap(const Mat1b& gt, const Mat1b& test, float th)
 	return (fsim >= th);
 }
 
-int Count(const vector<bool> v)
+int Count(const std::vector<bool> v)
 {
 	int counter = 0;
 	for (unsigned i = 0; i < v.size(); ++i)
@@ -173,7 +173,7 @@ int Count(const vector<bool> v)
 
 
 // Should be checked !!!!!
-std::tuple<float, float, float> Evaluate(const vector<Ellipse>& ellGT, const vector<Ellipse>& ellTest, const float th_score, const Mat3b& img)
+std::tuple<float, float, float> Evaluate(const std::vector<Ellipse>& ellGT, const std::vector<Ellipse>& ellTest, const float th_score, const Mat3b& img)
 {
 	float threshold_overlap = 0.8f;
 	//float threshold = 0.95f;
@@ -183,8 +183,8 @@ std::tuple<float, float, float> Evaluate(const vector<Ellipse>& ellGT, const vec
 
 	unsigned sz_test = unsigned(min(1000, int(size_test)));
 
-	vector<Mat1b> gts(sz_gt);
-	vector<Mat1b> tests(sz_test);
+    std::vector<Mat1b> gts(sz_gt);
+    std::vector<Mat1b> tests(sz_test);
 
 	for (unsigned i = 0; i < sz_gt; ++i)
 	{
@@ -215,7 +215,7 @@ std::tuple<float, float, float> Evaluate(const vector<Ellipse>& ellGT, const vec
 
 	int counter = 0;
 
-	vector<bool> vec_gt(sz_gt, false);
+    std::vector<bool> vec_gt(sz_gt, false);
 
 	for (int i = 0; i < sz_test; ++i)
 	{
@@ -275,7 +275,7 @@ Mat OnImage(Mat matimage)
 
 	// Convert to grayscale
 	Mat1b gray;
-	cvtColor(image, gray, CV_BGR2GRAY);
+	cvtColor(image, gray, COLOR_BGR2GRAY);
 
 
 	// Parameters Settings (Sect. 4.2)
@@ -314,11 +314,11 @@ Mat OnImage(Mat matimage)
 
 
 	// Detect
-	vector<Ellipse> ellsYaed;
+    std::vector<Ellipse> ellsYaed;
 	Mat1b gray2 = gray.clone();
 	yaed->Detect(gray2, ellsYaed);
 
-	vector<double> times = yaed->GetTimes();
+    std::vector<double> times = yaed->GetTimes();
 	cout << "--------------------------------" << endl;
 	cout << "Execution Time: " << endl;
 	cout << "Edge Detection: \t" << times[0] << endl;
@@ -332,7 +332,7 @@ Mat OnImage(Mat matimage)
 	cout << "--------------------------------" << endl;
 
 
-	vector<Ellipse> gt;
+std::vector<Ellipse> gt;
 
 	Mat3b resultImage = image.clone();
 
@@ -410,13 +410,13 @@ void OnVideo()
 	{	
 		Mat3b image;
 		cap >> image;
-		cvtColor(image, gray, CV_BGR2GRAY);	
+		cvtColor(image, gray, COLOR_BGR2GRAY);
 
-			vector<Ellipse> ellsYaed;
+        std::vector<Ellipse> ellsYaed;
 		Mat1b gray2 = gray.clone();
 		yaed->Detect(gray2, ellsYaed);
 
-		vector<double> times = yaed->GetTimes();
+        std::vector<double> times = yaed->GetTimes();
 		cout << "--------------------------------" << endl;
 		cout << "Execution Time: " << endl;
 		cout << "Edge Detection: \t" << times[0] << endl;
@@ -430,7 +430,7 @@ void OnVideo()
 		cout << "--------------------------------" << endl;
 
 
-		vector<Ellipse> gt;
+        std::vector<Ellipse> gt;
 		LoadGT(gt, sWorkingDir + "/gt/" + "gt_" + imagename + ".txt", true); // Prasad is in radians
 
 		Mat3b resultImage = image.clone();
@@ -464,12 +464,12 @@ void OnDataset()
 	//string sWorkingDir = "D:\\data\\ellipse_dataset\\Prasad Images - Dataset Prasad\\";
 	string out_folder = "D:\\data\\ellipse_dataset\\";
 
-	vector<string> names;
+    std::vector<string> names;
 
-	vector<float> prs;
-	vector<float> res;
-	vector<float> fms;
-	vector<double> tms;
+    std::vector<float> prs;
+    std::vector<float> res;
+    std::vector<float> fms;
+    std::vector<double> tms;
 
 	glob(sWorkingDir + "images\\" + "*.*", names);
 
@@ -486,7 +486,7 @@ void OnDataset()
 
 		// Convert to grayscale
 		Mat1b gray;
-		cvtColor(image, gray, CV_BGR2GRAY);
+		cvtColor(image, gray, COLOR_BGR2GRAY);
 
 		// Parameters Settings (Sect. 4.2)
 		int		iThLength = 16;
@@ -524,7 +524,7 @@ void OnDataset()
 
 
 		// Detect
-		vector<Ellipse> ellsYaed;
+        std::vector<Ellipse> ellsYaed;
 		Mat1b gray2 = gray.clone();
 		yaed->Detect(gray2, ellsYaed);
 
@@ -544,7 +544,7 @@ void OnDataset()
 		tms.push_back(yaed->GetExecTime());
 
 
-		vector<Ellipse> gt;
+        std::vector<Ellipse> gt;
 		LoadGT(gt, sWorkingDir + "gt\\" + "gt_" + name_ext + ".txt", false); // Prasad is in radians,set to true
 
 
@@ -600,7 +600,7 @@ int main2()
 {
 	string images_folder = "D:\\SO\\img\\";
 	string out_folder = "D:\\SO\\img\\";
-	vector<string> names;
+    std::vector<string> names;
 
 	glob(images_folder + "Lo3my4.*", names);
 
@@ -614,7 +614,7 @@ int main2()
 		
 		// Convert to grayscale
 		Mat1b gray;
-		cvtColor(image, gray, CV_BGR2GRAY);
+		cvtColor(image, gray, COLOR_BGR2GRAY);
 		
 		// Parameters Settings (Sect. 4.2)
 		int		iThLength = 16;
@@ -651,11 +651,11 @@ int main2()
 
 
 		// Detect
-		vector<Ellipse> ellsYaed;
+        std::vector<Ellipse> ellsYaed;
 		Mat1b gray2 = gray.clone();
 		yaed->Detect(gray2, ellsYaed);
 
-		vector<double> times = yaed->GetTimes();
+        std::vector<double> times = yaed->GetTimes();
 		cout << "--------------------------------" << endl;
 		cout << "Execution Time: " << endl;
 		cout << "Edge Detection: \t" << times[0] << endl;

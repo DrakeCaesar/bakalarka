@@ -1,3 +1,4 @@
+
 #include "ellipseDetector.h"
 
 #include <dlib/opencv.h>
@@ -340,8 +341,8 @@ int main() {
     VideoCapture cap;
 
     //const std::string videoStreamAddress = "http://192.168.1.31:8080/video";
-    //const std::string videoStreamAddress = "http://192.168.1.100:8080/video";
-    const std::string videoStreamAddress = "http://192.168.42.129:8080/video";
+    const std::string videoStreamAddress = "http://192.168.1.100:8080/video";
+    //const std::string videoStreamAddress = "http://192.168.42.129:8080/video";
     //const std::string videoStreamAddress = "http://10.42.0.233:8080/video";
 
     cap.open(videoStreamAddress);

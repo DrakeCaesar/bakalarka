@@ -116,7 +116,7 @@ int CEllipseDetectorYaed::FindMaxA(const int* v) const
 };
 
 
-float CEllipseDetectorYaed::GetMedianSlope(vector<Point2f>& med, Point2f& M, vector<float>& slopes)
+float CEllipseDetectorYaed::GetMedianSlope(std::vector<Point2f>& med, Point2f& M, std::vector<float>& slopes)
 {
 	// med		: vector of points
 	// M		: centroid of the points in med
@@ -128,7 +128,7 @@ float CEllipseDetectorYaed::GetMedianSlope(vector<Point2f>& med, Point2f& M, vec
 	unsigned halfSize = iNofPoints >> 1;
 	unsigned quarterSize = halfSize >> 1;
 
-	vector<float> xx, yy;
+    std::vector<float> xx, yy;
 	slopes.reserve(halfSize);
 	xx.reserve(iNofPoints);
 	yy.reserve(iNofPoints);
@@ -163,7 +163,7 @@ float CEllipseDetectorYaed::GetMedianSlope(vector<Point2f>& med, Point2f& M, vec
 
 
 
-void CEllipseDetectorYaed::GetFastCenter(vector<Point>& e1, vector<Point>& e2, EllipseData& data)
+void CEllipseDetectorYaed::GetFastCenter(std::vector<Point>& e1, std::vector<Point>& e2, EllipseData& data)
 {
 	data.isValid = true;
 
@@ -193,12 +193,12 @@ void CEllipseDetectorYaed::GetFastCenter(vector<Point>& e1, vector<Point>& e2, E
 		data.ra = m_ref;
 
 		// Find points with same slope as reference
-		vector<Point2f> med;
+        std::vector<Point2f> med;
 		med.reserve(hsize_2);
 
 		unsigned minPoints = (_uNs < hsize_2) ? _uNs : hsize_2;
 
-		vector<uint> indexes(minPoints);
+        std::vector<uint> indexes(minPoints);
 		if (_uNs < hsize_2)
 		{
 			unsigned iSzBin = hsize_2 / unsigned(_uNs);
@@ -308,12 +308,12 @@ void CEllipseDetectorYaed::GetFastCenter(vector<Point>& e1, vector<Point>& e2, E
 		data.rb = m_ref;
 
 		// Find points with same slope as reference
-		vector<Point2f> med;
+        std::vector<Point2f> med;
 		med.reserve(hsize_1);
 
 		uint minPoints = (_uNs < hsize_1) ? _uNs : hsize_1;
 
-		vector<uint> indexes(minPoints);
+        std::vector<uint> indexes(minPoints);
 		if (_uNs < hsize_1)
 		{
 			unsigned iSzBin = hsize_1 / unsigned(_uNs);
@@ -561,7 +561,7 @@ void CEllipseDetectorYaed::FindEllipses(	Point2f& center,
 											VP& edge_k,
 											EllipseData& data_ij,
 											EllipseData& data_ik,
-											vector<Ellipse>& ellipses
+                                            std::vector<Ellipse>& ellipses
 										)
 {
 	// Find ellipse parameters
@@ -1071,7 +1071,7 @@ void CEllipseDetectorYaed::Triplets124(VVP& pi,
 	VVP& pj,
 	VVP& pk,
 	unordered_map<uint, EllipseData>& data,
-	vector<Ellipse>& ellipses
+                                       std::vector<Ellipse>& ellipses
 	)
 {
 	// get arcs length
@@ -1204,7 +1204,7 @@ void CEllipseDetectorYaed::Triplets231(VVP& pi,
 	VVP& pj,
 	VVP& pk,
 	unordered_map<uint, EllipseData>& data,
-	vector<Ellipse>& ellipses
+    std::vector<Ellipse>& ellipses
 	)
 {
 	ushort sz_i = ushort(pi.size());
@@ -1324,7 +1324,7 @@ void CEllipseDetectorYaed::Triplets342(VVP& pi,
 	VVP& pj,
 	VVP& pk,
 	unordered_map<uint, EllipseData>& data,
-	vector<Ellipse>& ellipses
+                                       std::vector<Ellipse>& ellipses
 	)
 {
 	ushort sz_i = ushort(pi.size());
@@ -1447,7 +1447,7 @@ void CEllipseDetectorYaed::Triplets413(VVP& pi,
 	VVP& pj,
 	VVP& pk,
 	unordered_map<uint, EllipseData>& data,
-	vector<Ellipse>& ellipses
+                                       std::vector<Ellipse>& ellipses
 	)
 {
 		ushort sz_i = ushort(pi.size());
@@ -1635,7 +1635,7 @@ void CEllipseDetectorYaed::PrePeocessing(Mat1b& I,
 };
 
 
-void CEllipseDetectorYaed::DetectAfterPreProcessing(vector<Ellipse>& ellipses, Mat1b& E, const Mat1f& PHI)
+void CEllipseDetectorYaed::DetectAfterPreProcessing(std::vector<Ellipse>& ellipses, Mat1b& E, const Mat1f& PHI)
 {
 	// Set the image size
 	_szImg = E.size();
@@ -1702,7 +1702,7 @@ void CEllipseDetectorYaed::DetectAfterPreProcessing(vector<Ellipse>& ellipses, M
 };
 
 
-void CEllipseDetectorYaed::Detect(Mat1b& I, vector<Ellipse>& ellipses)
+void CEllipseDetectorYaed::Detect(Mat1b& I, std::vector<Ellipse>& ellipses)
 {
 	Tic(1); //prepare data structure
 
@@ -1808,7 +1808,7 @@ void CEllipseDetectorYaed::Detect(Mat1b& I, vector<Ellipse>& ellipses)
 
 
 // Ellipse clustering procedure. See Sect [3.3.2] in the paper.
-void CEllipseDetectorYaed::ClusterEllipses(vector<Ellipse>& ellipses)
+void CEllipseDetectorYaed::ClusterEllipses(std::vector<Ellipse>& ellipses)
 {
 	float th_Da = 0.1f;
 	float th_Db = 0.1f;
@@ -1821,7 +1821,7 @@ void CEllipseDetectorYaed::ClusterEllipses(vector<Ellipse>& ellipses)
 	if (iNumOfEllipses == 0) return;
 
 	// The first ellipse is assigned to a cluster
-	vector<Ellipse> clusters;
+    std::vector<Ellipse> clusters;
 	clusters.push_back(ellipses[0]);
 
 	bool bFoundCluster = false;
@@ -1895,7 +1895,7 @@ void CEllipseDetectorYaed::ClusterEllipses(vector<Ellipse>& ellipses)
 
 
 //Draw at most iTopN detected ellipses.
-void CEllipseDetectorYaed::DrawDetectedEllipses(Mat3b& output, vector<Ellipse>& ellipses, int iTopN, int thickness)
+void CEllipseDetectorYaed::DrawDetectedEllipses(Mat3b& output, std::vector<Ellipse>& ellipses, int iTopN, int thickness)
 {
 	int sz_ell = int(ellipses.size());
 	int n = (iTopN == 0) ? sz_ell : min(iTopN, sz_ell);

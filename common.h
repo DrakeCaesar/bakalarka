@@ -4,8 +4,10 @@ You are free to use and modify the code, at your own risk.
 
 If you use this code, or find it useful, please refer to the paper:
 
-Michele Fornaciari, Andrea Prati, Rita Cucchiara,
-A fast and effective ellipse detector for embedded vision applications
+Michele Fornaciari, Andrea Prati, Rit      |          ^~~~~~~~~~~~~~~~~~~~~~~~
+a Cucchiara,
+A fast and effective ellipse detector for embedded vision ap      |          ^~~~~~~~~~~~~~~~~~~~~~~~
+plications
 Pattern Recognition, Volume 47, Issue 11, November 2014, Pages 3693-3708, ISSN 0031-3203,
 http://dx.doi.org/10.1016/j.patcog.2014.05.012.
 (http://www.sciencedirect.com/science/article/pii/S0031320314001976)
@@ -20,18 +22,32 @@ last update: 23/12/2014
 */
 
 #pragma once
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
-//#include <opencv4/opencv2/core/core_c.h>
-//#include <opencv4/opencv2/opencv.hpp>
-//#include "opencv2\core\internal.hpp"
+//#include <opencv/cv.h>
+//#include <opencv/highgui.h>
 
+#include <opencv4/opencv2/core/core_c.h>
+#include <opencv4/opencv2/core/types_c.h>
+
+#include <opencv4/opencv2/opencv.hpp>
+#include <opencv4/opencv2/core.hpp>
+#include <opencv4/opencv2/core/base.hpp>
+#include <opencv4/opencv2/imgproc/types_c.h>
+#include <opencv4/opencv2/imgproc/imgproc_c.h>
+#include <opencv4/opencv2/core/cvdef.h>
+
+//#include "opencv2\core\internal.hpp"
+#include <dlib/opencv.h>
+#include <dlib/image_processing/frontal_face_detector.h>
+#include <dlib/image_processing/render_face_detections.h>
+#include <dlib/image_processing.h>
+#include <dlib/gui_widgets.h>
 
 using namespace std;
 using namespace cv;
+using namespace dlib;
 
-typedef vector<Point>	VP;
-typedef vector< VP >	VVP;
+typedef std::vector<Point>	VP;
+typedef std::vector< VP >	VVP;
 typedef unsigned int uint;
 
 #define _INFINITY 1024
@@ -101,8 +117,8 @@ float inline ed2f(const Point2f& A, const Point2f& B)
 }
 
 
-void Labeling(Mat1b& image, vector<vector<Point> >& segments, int iMinLength);
-void LabelingRect(Mat1b& image, VVP& segments, int iMinLength, vector<Rect>& bboxes);
+void Labeling(Mat1b& image, std::vector<std::vector<Point> >& segments, int iMinLength);
+void LabelingRect(Mat1b& image, VVP& segments, int iMinLength, std::vector<Rect>& bboxes);
 void Thinning(Mat1b& imgMask, uchar byF=255, uchar byB=0);
 
 bool SortBottomLeft2TopRight(const Point& lhs, const Point& rhs);
