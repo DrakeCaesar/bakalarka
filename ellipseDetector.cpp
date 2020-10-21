@@ -19,15 +19,13 @@ michele.fornaciari@unimore.it
 last update: 23/12/2014
 */
 
-//#include <cv.hpp>
-#include <limits.h> /* PATH_MAX */
 #include <stdlib.h>
-//#include <stdio.h>
-//#include <opencv/cv.h>
-//#include <opencv/highgui.h>
-
+#include <stdio.h>
+#include <opencv2/core/types_c.h>
 #include "EllipseDetectorYaed.h"
 #include <fstream>
+#include <iostream>
+#include <opencv2/opencv.hpp>
 
 
 using namespace std;
@@ -36,7 +34,7 @@ using namespace cv;
 
 
 // Should be checked
-void SaveEllipses(const string& workingDir, const string& imgName, const std::vector<Ellipse>& ellipses /*, const vector<double>& times*/)
+void SaveEllipses(const string& workingDir, const string& imgName, const vector<Ellipse>& ellipses /*, const vector<double>& times*/)
 {
 	string path(workingDir + "/" + imgName + ".txt");
 	ofstream out(path, ofstream::out | ofstream::trunc);
@@ -63,7 +61,7 @@ void SaveEllipses(const string& workingDir, const string& imgName, const std::ve
 }
 
 // Should be checked
-bool LoadTest(std::vector<Ellipse>& ellipses, const string& sTestFileName, std::vector<double>& times, bool bIsAngleInRadians = true)
+bool LoadTest(vector<Ellipse>& ellipses, const string& sTestFileName, vector<double>& times, bool bIsAngleInRadians = true)
 {
 	ifstream in(sTestFileName);
 	if (!in.good())
@@ -110,7 +108,7 @@ bool LoadTest(std::vector<Ellipse>& ellipses, const string& sTestFileName, std::
 }
 
 
-void LoadGT(std::vector<Ellipse>& gt, const string& sGtFileName, bool bIsAngleInRadians = true)
+void LoadGT(vector<Ellipse>& gt, const string& sGtFileName, bool bIsAngleInRadians = true)
 {
 	ifstream in(sGtFileName);
 	if (!in.good())
@@ -161,7 +159,7 @@ bool TestOverlap(const Mat1b& gt, const Mat1b& test, float th)
 	return (fsim >= th);
 }
 
-int Count(const std::vector<bool> v)
+int Count(const vector<bool> v)
 {
 	int counter = 0;
 	for (unsigned i = 0; i < v.size(); ++i)
@@ -173,7 +171,7 @@ int Count(const std::vector<bool> v)
 
 
 // Should be checked !!!!!
-std::tuple<float, float, float> Evaluate(const std::vector<Ellipse>& ellGT, const std::vector<Ellipse>& ellTest, const float th_score, const Mat3b& img)
+std::tuple<float, float, float> Evaluate(const vector<Ellipse>& ellGT, const vector<Ellipse>& ellTest, const float th_score, const Mat3b& img)
 {
 	float threshold_overlap = 0.8f;
 	//float threshold = 0.95f;
@@ -183,8 +181,8 @@ std::tuple<float, float, float> Evaluate(const std::vector<Ellipse>& ellGT, cons
 
 	unsigned sz_test = unsigned(min(1000, int(size_test)));
 
-    std::vector<Mat1b> gts(sz_gt);
-    std::vector<Mat1b> tests(sz_test);
+	vector<Mat1b> gts(sz_gt);
+	vector<Mat1b> tests(sz_test);
 
 	for (unsigned i = 0; i < sz_gt; ++i)
 	{
@@ -215,7 +213,7 @@ std::tuple<float, float, float> Evaluate(const std::vector<Ellipse>& ellGT, cons
 
 	int counter = 0;
 
-    std::vector<bool> vec_gt(sz_gt, false);
+	vector<bool> vec_gt(sz_gt, false);
 
 	for (int i = 0; i < sz_test; ++i)
 	{
@@ -275,7 +273,7 @@ Mat OnImage(Mat matimage)
 
 	// Convert to grayscale
 	Mat1b gray;
-	cvtColor(image, gray, COLOR_BGR2GRAY);
+	cvtColor(image, gray, CV_BGR2GRAY);
 
 
 	// Parameters Settings (Sect. 4.2)
@@ -314,11 +312,11 @@ Mat OnImage(Mat matimage)
 
 
 	// Detect
-    std::vector<Ellipse> ellsYaed;
+	vector<Ellipse> ellsYaed;
 	Mat1b gray2 = gray.clone();
 	yaed->Detect(gray2, ellsYaed);
 
-    std::vector<double> times = yaed->GetTimes();
+	vector<double> times = yaed->GetTimes();
 	cout << "--------------------------------" << endl;
 	cout << "Execution Time: " << endl;
 	cout << "Edge Detection: \t" << times[0] << endl;
@@ -332,7 +330,8 @@ Mat OnImage(Mat matimage)
 	cout << "--------------------------------" << endl;
 
 
-std::vector<Ellipse> gt;
+	vector<Ellipse> gt;
+	//LoadGT(gt, filename_minus_ext + ".txt", true); // Prasad is in radians
 
 	Mat3b resultImage = image.clone();
 
@@ -352,9 +351,10 @@ std::vector<Ellipse> gt;
 	Evaluate(gt, ellsYaed, fThScoreScore, res);
 
 	// Show the image in a scalable window.
-	namedWindow("Annotated Image", WINDOW_NORMAL);
+	//namedWindow("Annotated Image", WINDOW_NORMAL);
+	//imshow("Annotated Image", resultImage);
+	//waitKey();
 	return resultImage;
-
 }
 
 void OnVideo()
@@ -410,13 +410,13 @@ void OnVideo()
 	{	
 		Mat3b image;
 		cap >> image;
-		cvtColor(image, gray, COLOR_BGR2GRAY);
+		cvtColor(image, gray, CV_BGR2GRAY);	
 
-        std::vector<Ellipse> ellsYaed;
+			vector<Ellipse> ellsYaed;
 		Mat1b gray2 = gray.clone();
 		yaed->Detect(gray2, ellsYaed);
 
-        std::vector<double> times = yaed->GetTimes();
+		vector<double> times = yaed->GetTimes();
 		cout << "--------------------------------" << endl;
 		cout << "Execution Time: " << endl;
 		cout << "Edge Detection: \t" << times[0] << endl;
@@ -430,7 +430,7 @@ void OnVideo()
 		cout << "--------------------------------" << endl;
 
 
-        std::vector<Ellipse> gt;
+		vector<Ellipse> gt;
 		LoadGT(gt, sWorkingDir + "/gt/" + "gt_" + imagename + ".txt", true); // Prasad is in radians
 
 		Mat3b resultImage = image.clone();
@@ -464,12 +464,12 @@ void OnDataset()
 	//string sWorkingDir = "D:\\data\\ellipse_dataset\\Prasad Images - Dataset Prasad\\";
 	string out_folder = "D:\\data\\ellipse_dataset\\";
 
-    std::vector<string> names;
+	vector<string> names;
 
-    std::vector<float> prs;
-    std::vector<float> res;
-    std::vector<float> fms;
-    std::vector<double> tms;
+	vector<float> prs;
+	vector<float> res;
+	vector<float> fms;
+	vector<double> tms;
 
 	glob(sWorkingDir + "images\\" + "*.*", names);
 
@@ -486,7 +486,7 @@ void OnDataset()
 
 		// Convert to grayscale
 		Mat1b gray;
-		cvtColor(image, gray, COLOR_BGR2GRAY);
+		cvtColor(image, gray, CV_BGR2GRAY);
 
 		// Parameters Settings (Sect. 4.2)
 		int		iThLength = 16;
@@ -524,7 +524,7 @@ void OnDataset()
 
 
 		// Detect
-        std::vector<Ellipse> ellsYaed;
+		vector<Ellipse> ellsYaed;
 		Mat1b gray2 = gray.clone();
 		yaed->Detect(gray2, ellsYaed);
 
@@ -544,7 +544,7 @@ void OnDataset()
 		tms.push_back(yaed->GetExecTime());
 
 
-        std::vector<Ellipse> gt;
+		vector<Ellipse> gt;
 		LoadGT(gt, sWorkingDir + "gt\\" + "gt_" + name_ext + ".txt", false); // Prasad is in radians,set to true
 
 
@@ -594,13 +594,31 @@ void OnDataset()
 	getchar();
 }
 
+/*
+int main(int argc, char** argv)
+{
 
+	char *resolved_path = (char *)malloc(1000);
+	strcpy_s(resolved_path,10,"image.png");
 
+	// char *extension = (char *)malloc(20);
+	// _splitpath_s(resolved_path, NULL, 0, NULL, 0, NULL, 0, extension, 20);
+	// cout << "file extension: " << extension << endl;
+	// OnVideo();
+	OnImage(resolved_path);
+	//OnDataset();
+	free(resolved_path);
+	// free(extension);
+	return 0;
+}
+
+// Test on single image
+*/
 int main2()
 {
 	string images_folder = "D:\\SO\\img\\";
 	string out_folder = "D:\\SO\\img\\";
-    std::vector<string> names;
+	vector<string> names;
 
 	glob(images_folder + "Lo3my4.*", names);
 
@@ -614,7 +632,7 @@ int main2()
 		
 		// Convert to grayscale
 		Mat1b gray;
-		cvtColor(image, gray, COLOR_BGR2GRAY);
+		cvtColor(image, gray, CV_BGR2GRAY);
 		
 		// Parameters Settings (Sect. 4.2)
 		int		iThLength = 16;
@@ -651,11 +669,11 @@ int main2()
 
 
 		// Detect
-        std::vector<Ellipse> ellsYaed;
+		vector<Ellipse> ellsYaed;
 		Mat1b gray2 = gray.clone();
 		yaed->Detect(gray2, ellsYaed);
 
-        std::vector<double> times = yaed->GetTimes();
+		vector<double> times = yaed->GetTimes();
 		cout << "--------------------------------" << endl;
 		cout << "Execution Time: " << endl;
 		cout << "Edge Detection: \t" << times[0] << endl;

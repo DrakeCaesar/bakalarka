@@ -26,20 +26,17 @@ This class implements a very fast ellipse detector, codename: YAED (Yet Another 
 */
 
 #pragma once
+
+// #include <cxcore.hpp>
+#include <stdio.h>
 #include <algorithm>
 #include <numeric>
 #include <unordered_map>
 #include <vector>
-#include "common.h"
-#include <time.h>
-// #include <cxcore.hpp>
-//#include <opencv/cv.h>
-//#include <opencv4/opencv2/opencv.hpp>
-//#include <opencv4/opencv2/core/types_c.h>
-
 
 //#include "Ellipse.h"
-
+#include "common.h"
+#include <time.h>
 
 using namespace std;
 using namespace cv;
@@ -50,7 +47,7 @@ using namespace cv;
 //#define DISCARD_CONSTRAINT_CENTER
 
 
-// Data available after selection strategy. 
+// Data available after selection strategy.
 // They are kept in an associative array to:
 // 1) avoid recomputing data when starting from same arcs
 // 2) be reused in firther proprecessing
@@ -65,8 +62,8 @@ struct EllipseData
 	Point2f Ma;
 	Point2f Mb;
 	Point2f Cab;
-    std::vector<float> Sa;
-    std::vector<float> Sb;
+	vector<float> Sa;
+	vector<float> Sb;
 };
 
 
@@ -77,11 +74,11 @@ class CEllipseDetectorYaed
 	// Preprocessing - Gaussian filter. See Sect [] in the paper
 	Size	_szPreProcessingGaussKernelSize;	// size of the Gaussian filter in preprocessing step
 	double	_dPreProcessingGaussSigma;			// sigma of the Gaussian filter in the preprocessing step
-		
-	
+
+
 
 	// Selection strategy - Step 1 - Discard noisy or straight arcs. See Sect [] in the paper
-	int		_iMinEdgeLength;					// minimum edge size				
+	int		_iMinEdgeLength;					// minimum edge size
 	float	_fMinOrientedRectSide;				// minumum size of the oriented bounding box containing the arc
 	float	_fMaxRectAxesRatio;					// maximum aspect ratio of the oriented bounding box containing the arc
 
@@ -105,8 +102,8 @@ class CEllipseDetectorYaed
 
 	// auxiliary variables
 	Size	_szImg;			// input image size
-    std::vector<double> _timesHelper;
-    std::vector<double> _times;	// _times is a vector containing the execution time of each step.
+	vector<double> _timesHelper;
+	vector<double> _times;	// _times is a vector containing the execution time of each step.
 							// _times[0] : time for edge detection
 							// _times[1] : time for pre processing
 							// _times[2] : time for grouping
@@ -128,14 +125,14 @@ public:
 	CEllipseDetectorYaed(void);
 	~CEllipseDetectorYaed(void);
 
-	void DetectAfterPreProcessing(std::vector<Ellipse>& ellipses, Mat1b& E, const Mat1f& PHI=Mat1f());
+	void DetectAfterPreProcessing(vector<Ellipse>& ellipses, Mat1b& E, const Mat1f& PHI=Mat1f());
 
 	//Detect the ellipses in the gray image
-	void Detect(Mat1b& gray, std::vector<Ellipse>& ellipses);
-	
+	void Detect(Mat1b& gray, vector<Ellipse>& ellipses);
+
 	//Draw the first iTopN ellipses on output
-	void DrawDetectedEllipses(Mat3b& output, std::vector<Ellipse>& ellipses, int iTopN=0, int thickness=2);
-	
+	void DrawDetectedEllipses(Mat3b& output, vector<Ellipse>& ellipses, int iTopN=0, int thickness=2);
+
 	//Set the parameters of the detector
 	void SetParameters	(	Size	szPreProcessingGaussKernelSize,
 							double	dPreProcessingGaussSigma,
@@ -151,8 +148,8 @@ public:
 
 	// Return the execution time
 	double GetExecTime() { return _times[0] + _times[1] + _times[2] + _times[3] + _times[4] + _times[5]; }
-    std::vector<double> GetTimes() { return _times; }
-	
+	vector<double> GetTimes() { return _times; }
+
 private:
 
 	//keys for hash table
@@ -168,19 +165,19 @@ private:
 
 	void RemoveShortEdges(Mat1b& edges, Mat1b& clean);
 
-	void ClusterEllipses(std::vector<Ellipse>& ellipses);
+	void ClusterEllipses(vector<Ellipse>& ellipses);
 
-	int FindMaxK(const std::vector<int>& v) const;
-	int FindMaxN(const std::vector<int>& v) const;
-	int FindMaxA(const std::vector<int>& v) const;
+	int FindMaxK(const vector<int>& v) const;
+	int FindMaxN(const vector<int>& v) const;
+	int FindMaxA(const vector<int>& v) const;
 
 	int FindMaxK(const int* v) const;
 	int FindMaxN(const int* v) const;
 	int FindMaxA(const int* v) const;
 
-	float GetMedianSlope(std::vector<Point2f>& med, Point2f& M, std::vector<float>& slopes);
-	void GetFastCenter	(std::vector<Point>& e1, std::vector<Point>& e2, EllipseData& data);
-	
+	float GetMedianSlope(vector<Point2f>& med, Point2f& M, vector<float>& slopes);
+	void GetFastCenter	(vector<Point>& e1, vector<Point>& e2, EllipseData& data);
+
 
 	void DetectEdges13(Mat1b& DP, VVP& points_1, VVP& points_3);
 	void DetectEdges24(Mat1b& DN, VVP& points_2, VVP& points_4);
@@ -191,40 +188,40 @@ private:
 							VP& edge_k,
 							EllipseData& data_ij,
 							EllipseData& data_ik,
-							std::vector<Ellipse>& ellipses
+							vector<Ellipse>& ellipses
 						);
 
 	Point2f GetCenterCoordinates(EllipseData& data_ij, EllipseData& data_ik);
 	Point2f _GetCenterCoordinates(EllipseData& data_ij, EllipseData& data_ik);
 
-	
+
 
 	void Triplets124	(	VVP& pi,
 							VVP& pj,
 							VVP& pk,
 							unordered_map<uint, EllipseData>& data,
-							std::vector<Ellipse>& ellipses
+							vector<Ellipse>& ellipses
 						);
 
 	void Triplets231	(	VVP& pi,
 							VVP& pj,
 							VVP& pk,
 							unordered_map<uint, EllipseData>& data,
-							std::vector<Ellipse>& ellipses
+							vector<Ellipse>& ellipses
 						);
 
 	void Triplets342	(	VVP& pi,
 							VVP& pj,
 							VVP& pk,
 							unordered_map<uint, EllipseData>& data,
-							std::vector<Ellipse>& ellipses
+							vector<Ellipse>& ellipses
 						);
 
 	void Triplets413	(	VVP& pi,
 							VVP& pj,
 							VVP& pk,
 							unordered_map<uint, EllipseData>& data,
-							std::vector<Ellipse>& ellipses
+							vector<Ellipse>& ellipses
 						);
 
 	void Tic(unsigned idx) //start

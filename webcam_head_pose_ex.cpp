@@ -10,7 +10,6 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
-#include <sys/ioctl.h>
 #include <thread>
 #include <mutex>
 #include <queue>
@@ -50,7 +49,7 @@ int max(int x, int y) {
 
 int detectEyes(cv::Mat * image, cv::Rect rect[])
 {
-    bool debug = false;
+    bool debug = true;
     cv::Mat resize, flip, grey, test;
     cv::cvtColor(* image, grey, COLOR_BGR2GRAY);
     cv::resize(grey, resize, cv::Size(grey.cols/8,grey.rows/8));
@@ -269,7 +268,7 @@ void GrabThread(VideoCapture *cap)
         //keep grab out of lock so that
         //idle time can be used by other threads
         *cap >> tmp; //this will wait for cam FPS
-
+        //tmp = imread("face.jpeg");
         if (tmp.empty()) continue;
 
         //get lock only when we have a frame
@@ -341,11 +340,14 @@ int main() {
     VideoCapture cap;
 
     //const std::string videoStreamAddress = "http://192.168.1.31:8080/video";
-    const std::string videoStreamAddress = "http://192.168.1.100:8080/video";
+    //const std::string videoStreamAddress = "http://192.168.1.100:8080/video";
+    //const std::string videoStreamAddress = "http://100.64.96.71:8080/video";
+    const std::string videoStreamAddress = "http://192.168.0.173:8080/video";
+
     //const std::string videoStreamAddress = "http://192.168.42.129:8080/video";
     //const std::string videoStreamAddress = "http://10.42.0.233:8080/video";
 
-    cap.open(videoStreamAddress);
+    cap.open(videoStreamAddress );
     if (!cap.isOpened()) //check if we succeeded
         return -1;
 
