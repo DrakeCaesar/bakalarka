@@ -9,13 +9,10 @@
 #include <vector>
 #include <iostream>
 #include <thread>
-#include <chrono>
-#include <thread>
 #include <mutex>
 #include <queue>
 #include <atomic>
-
-#define LINE_AA 16
+#include "render_eye_detections.h"
 
 #pragma comment (lib, "Normaliz.lib")
 #pragma comment (lib, "Ws2_32.lib")
@@ -34,7 +31,10 @@ std::queue<Mat> buffer;
 frontal_face_detector detector = get_frontal_face_detector();
 shape_predictor pose_model, eyes_model;
 image_window win;
+//image_window eyeL;
+//image_window eyeR;
 image_window win1;
+
 
 int min(int x, int y) {
     if (x < y)
@@ -47,13 +47,16 @@ int max(int x, int y) {
     return y;
 }
 
+
 int detectEyes(cv::Mat * image, cv::Rect rect[])
 {
+    (*image) = imread("face.jpeg");
     bool debug = true;
-    cv::Mat resize, flip, grey, test;
+    cv::Mat resize, flip, grey, test, transpose;
     cv::cvtColor(* image, grey, COLOR_BGR2GRAY);
-    cv::resize(grey, resize, cv::Size(grey.cols/8,grey.rows/8));
-    //cv::flip(resize, flip, +1);
+    cv::resize(grey, resize, cv::Size(grey.cols/2,grey.rows/2));
+    //cv::transpose(resize, transpose);
+    //cv::flip(transpose, flip, +1);
     dlib::array2d<unsigned char> cimg, cimg1;
     dlib::assign_image(cimg, dlib::cv_image<unsigned char>(resize));
     if (debug){
@@ -74,13 +77,16 @@ int detectEyes(cv::Mat * image, cv::Rect rect[])
                 y2 = max(y2, shapes[i].part(0 + j*6 + k).y());
             }
             rect[j] = cv::Rect(x1, y1 - .5*(y2 - y1), x2 - x1, 2*(y2 - y1));
+            //rect[j] = cv::Rect(x1, y1, x2 - x1, y2 - y1);
+
             if (debug) {
-                cv::rectangle(test, rect[j], cv::Scalar(0, 0, 255));
+                //cv::rectangle(test, rect[j], cv::Scalar(0, 0, 255));
             }
         }
+        full_object_detection remapped_image;
         if (debug) {
             win1.clear_overlay();
-            //win1.add_overlay(render_face_detections(shapes));
+            win1.add_overlay(render_eye_detections(shapes));
         }
     }
     if (debug) {
@@ -92,7 +98,7 @@ int detectEyes(cv::Mat * image, cv::Rect rect[])
 
 int detectface(cv::Mat * image, cv::Rect rect[])
 {
-    bool debug = false;
+    bool debug = true;
     cv::Mat resize, flip, grey, test;
     cv::cvtColor(* image, grey, COLOR_BGR2GRAY);
     cv::resize(grey, resize, cv::Size(grey.cols/8,grey.rows/8));
@@ -147,13 +153,7 @@ void normalize(cv::Rect* rect, int x, int y) {
     }
 }
 
-int sliderPos = 50;// 80;
-int alpha = 40; /*< Simple contrast control Enter the alpha value [1.0-3.0]: 2.2 */
-int betaa = 0;       /*< Simple brightness control Enter the beta value [0-100]: 50 */
-
-
-
-void detectEye(cv::Mat * image, cv::Rect * rect){
+void detectEye(cv::Mat * image, cv::Rect * rect, image_window * window){
     int factor1 = 8;
     int factor2 = 2;
     cv::Rect scaledRect;
@@ -163,80 +163,26 @@ void detectEye(cv::Mat * image, cv::Rect * rect){
     scaledRect.width = (*rect).width * factor1;
     scaledRect.height = (*rect).height * factor1;
     normalize(&scaledRect, (* image).cols, (* image).rows);
+
     cv::Mat croppedImage = (* image)(scaledRect);
-    cv:: Mat grey, blur, hist;
-    cvtColor(croppedImage, grey, COLOR_BGR2GRAY);
-    medianBlur(grey, blur, 5);
-    equalizeHist(blur, hist);
+    if (croppedImage.cols * croppedImage.rows == 0)
+        return;
 
+    cv::cvtColor( croppedImage, croppedImage, COLOR_BGR2GRAY );
+    cv::equalizeHist( croppedImage, croppedImage );
+    cv::medianBlur(croppedImage, croppedImage,(3,3));
 
+    cv::Mat frame;
 
+    cv::GaussianBlur(croppedImage, frame, cv::Size(0, 0), 3);
+    cv::addWeighted(croppedImage, 1.5, frame, -0.5, 0, frame);
 
-    //cv_image<bgr_pixel> cimg(blur);
-    //win.set_image(hist);
-    //win.set_image(hist);
-
-    /*
-
-    int factor1 = 8;
-    int factor2 = 2;
-    cv::Rect scaledRect;
-
-    scaledRect.x = (*rect).x * factor1 * factor2;
-    scaledRect.y = (*rect).y * factor1 * factor2;
-    scaledRect.width = (*rect).width * factor1 * factor2;
-    scaledRect.height = (*rect).height * factor1 * factor2;
-    cv::Mat croppedImage = (*image).clone();
-    cv::resize(croppedImage, croppedImage, cv::Size((*image).cols * factor2, (*image).rows * factor2));
-    normalize(&scaledRect, (croppedImage).cols, (croppedImage).rows);
-
-    croppedImage = croppedImage(scaledRect).clone();
-    /*
-    scaledRect.height = (*rect).height * factor;
-    cv::Mat croppedImage = (*image)(scaledRect).clone();
-    cv::resize(croppedImage, croppedImage, cv::Size((*image).cols * 4, (*image).rows * 4));
-    normalize(&scaledRect, (croppedImage).cols, (croppedImage).rows);
-    croppedImage = (croppedImage)(scaledRect).clone();
-    */
-
-    /*
-    for (int y = 0; y < croppedImage.rows; y++) {
-        for (int x = 0; x < croppedImage.cols; x++) {
-            for (int c = 0; c < croppedImage.channels(); c++) {
-                croppedImage.at<Vec3b>(y, x)[c] = saturate_cast<uchar>(.1 * alpha * croppedImage.at<Vec3b>(y, x)[c] + beta - 100);
-            }
-        }
-    }
-    */
-    /*
-    cv_image<bgr_pixel> cimg(croppedImage);
-    win.set_image(cimg);
-    cvtColor(croppedImage, croppedImage, COLOR_BGR2GRAY);
-    medianBlur(croppedImage, croppedImage, 5);
-    equalizeHist(croppedImage, croppedImage);
-    //Mat render = croppedImage.clone();
-    inRange(croppedImage, 0, sliderPos, croppedImage);
-
-    auto kernel = getStructuringElement(MORPH_RECT, Size(3, 3));
-    //distanceTransform(croppedImage,croppedImage, DIST_L2, DIST_MASK_PRECISE);
-    Mat render = croppedImage.clone();
-
-    dilate(croppedImage, kernel, 2);
-    erode(croppedImage, kernel, 3);
-    //morphologyEx(croppedImage, croppedImage, MORPH_CLOSE, getStructuringElement(MORPH_ELLIPSE, Size(7, 7)));
-
-    //morphologyEx(croppedImage, croppedImage, MORPH_OPEN, getStructuringElement(MORPH_ELLIPSE, Size(25, 25)));
-
-
-    cvtColor(render, render, COLOR_GRAY2BGR);
-
-    cv_image<bgr_pixel> cimg1(render);
-    win1.set_image(cimg1);
-    */
-
+    cv::cvtColor( croppedImage, croppedImage, COLOR_GRAY2RGB );
+    cv::Mat result = OnImage(croppedImage);
+    cv_image<bgr_pixel> cimg1(result);
+    (*window).set_image(cimg1);
 
 }
-
 
 cv::Mat thresh(cv::Mat * image, int rmin, int rmax) {
     cv::Mat I = (*image).clone();
@@ -270,6 +216,9 @@ void GrabThread(VideoCapture *cap)
         *cap >> tmp; //this will wait for cam FPS
         //tmp = imread("face.jpeg");
         if (tmp.empty()) continue;
+        //if (tmp.empty())
+        //    (*cap).set(CAP_PROP_POS_FRAMES, 0);
+
 
         //get lock only when we have a frame
         mtxCam.lock();
@@ -289,34 +238,24 @@ int duration = 0;
 int duration1 = 0;
 void ProcessFrame(Mat &src,int bufSize)
 {
-    //return;
+    cv::transpose(src,src);
+    //src = imread("face.jpeg");
+    //imshow("Image main", src);
     Rect eyes[2];
-
+    //src = imread("face.jpeg");
     if(bufSize > 8 ) return;
     if(src.empty()) return;
-    detectEyes(const_cast<const decltype(&src)>(&src),eyes);
-    //cout << "test" << endl;
-    //cv::resize(src, src, cv::Size((src).cols/8,(src).rows/8));
-    //putText( const_cast<const decltype(src)>(src) , "PROC FRAME", Point(10, 10), CV_FONT_HERSHEY_PLAIN, 1, Scalar(0, 255, 0));
+    int faces = detectEyes(const_cast<const decltype(&src)>(&src),eyes);
+    //if (faces)
+    //detectEye( &src, eyes+1, &eyeL);
 
-    /*
-     * Rect eyes1[1];
-    int a, b;
-    auto t3 = std::chrono::high_resolution_clock::now();
-    a = detectEyes(const_cast<const decltype(&src)>(&src),eyes1);
-    auto t4 = std::chrono::high_resolution_clock::now();
-    auto t1 = std::chrono::high_resolution_clock::now();
-    b = detectface(const_cast<const decltype(&src)>(&src),eyes1);
-    auto t2 = std::chrono::high_resolution_clock::now();
-    if (a && b) {
-        duration += std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-        duration1 += std::chrono::duration_cast<std::chrono::microseconds>(t4 - t3).count();
-        std::cout << "face: " << duration << endl;
-        std::cout << "eyes: " << duration1 << endl;
-        std::cout << "eyes/faces: " << 1.f * duration1 / duration << endl;
+/*
+    for (int i = 0; i < faces; i++ ){
+        std::thread detectEyeLeft(detectEye, &src, eyes+1, &eyeL);
+        sleep(1u);
+        std::thread detectEyeRight(detectEye, &src, eyes+0, &eyeR);
     }
     */
-    //imshow("Image main", src);
 }
 
 
@@ -339,15 +278,9 @@ int main() {
     Mat frame;
     VideoCapture cap;
 
-    //const std::string videoStreamAddress = "http://192.168.1.31:8080/video";
-    //const std::string videoStreamAddress = "http://192.168.1.100:8080/video";
-    //const std::string videoStreamAddress = "http://100.64.96.71:8080/video";
-    const std::string videoStreamAddress = "http://192.168.0.173:8080/video";
-
-    //const std::string videoStreamAddress = "http://192.168.42.129:8080/video";
-    //const std::string videoStreamAddress = "http://10.42.0.233:8080/video";
-
-    cap.open(videoStreamAddress );
+    const std::string videoStreamAddress = "http://192.168.0.103:8080/video";
+    //const std::string videoStreamAddress = "VID_20201023_163951.mp4";
+    cap.open(0);
     if (!cap.isOpened()) //check if we succeeded
         return -1;
 
@@ -401,151 +334,3 @@ int main() {
     return 0;
 }
 
-
-/*
-int main(){
-
-
-
-
-    //ellipseDetector((char *)"media/circles.jpg");
-
-    cv::Mat image;
-    cv::Rect rect[2];
-
-
-    const std::string videoStreamAddress = "http://192.168.1.31:8080/video";
-    cv::VideoCapture cap;
-    const unsigned int targetFramerate = 10;
-    const unsigned int second = 1000000;
-    const unsigned int targetFrameTime = second / targetFramerate;
-
-    if (!cap.open(videoStreamAddress)) {
-        std::cout << "Error opening video stream or file" << std::endl;
-        return -1;
-    }
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    cout << "running" << endl;
-    int i = 0;
-    //cap.set(CV_CAP_PROP_POS_FRAMES, 0);
-
-    while (cap.isOpened()) {
-        //cout << "iteration " << ++ i << endl;
-        //cap.set(CV_CAP_PROP_POS_FRAMES, cap.get(CV_CAP_PROP_FRAME_COUNT));
-        //cap.release();
-        cv::Mat temp;
-        //cap.open("cap.open(videoStreamAddress)");//Insert own url
-        cap >> temp;
-        cv::flip(temp, image, +1);
-        //std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-        //unsigned int microsec = std::chrono::duration_cast<std::chrono::microseconds>  (end - begin).count();
-        //if (second / microsec > targetFramerate)
-        //    std::this_thread::sleep_for(std::chrono::microseconds(targetFrameTime - microsec));
-        //begin = std::chrono::steady_clock::now();
-        imshow("TestImage", image);
-        //cout << cap.get(CV_CAP_PROP_FRAME_COUNT) << endl;
-        waitKey(1);
-    }
-    /*
-    {
-        VideoCapture cap;
-        // open the default camera, use something different from 0 otherwise;
-        // Check VideoCapture documentation.
-        if(!cap.open(0))
-            return 0;
-        for(;;)
-        {
-            Mat frame;
-            cap >> frame;
-            if( frame.empty() ) break; // end of video stream
-            imshow("this is you, smile! :)", frame);
-            if( waitKey(10) == 27 ) break; // stop capturing by pressing ESC
-        }
-        // the camera will be closed automatically upon exit
-        // cap.close();
-        return 0;
-    }
-    */
-
-
-
-
-
-
-    /*
-
-
-    image = imread("media/circles.png");
-    cvtColor(image, image, COLOR_BGR2GRAY);
-    medianBlur(image, image, 5);
-    equalizeHist(image, image);
-    inRange(image, 0, sliderPos, image);
-    threshold(image, image, 100, 255, THRESH_BINARY | THRESH_OTSU);
-    cvtColor(image, image, COLOR_GRAY2BGR);
-    auto start = chrono::steady_clock::now();
-    cv::Mat resultImage = OnImage(image);
-    auto end = chrono::steady_clock::now();
-    cout << "Elapsed time in milliseconds : "
-         << chrono::duration_cast<chrono::milliseconds>(end - start).count()
-         << " ms" << endl;
-
-
-    //return 0;
-
-    //imshow("Annotated Image", resultImage);
-    /*
-    //waitKey();
-
-    cv::namedWindow("out", WINDOW_AUTOSIZE);
-
-    cv_image<bgr_pixel> cimg(image);
-
-    cvtColor(image, image, COLOR_BGR2GRAY);
-
-    medianBlur(image, image, 5);
-
-    equalizeHist(image, image);
-    inRange(image, 0, sliderPos, image);
-    threshold(image, image, 100, 255, THRESH_BINARY | THRESH_OTSU);
-    //morphologyEx(image, image, MORPH_CLOSE, getStructuringElement(MORPH_ELLIPSE, Size(25, 25)));
-
-    //distanceTransform(image, image, DIST_L2, 3);
-
-    //normalize(image, image, 0, 1.0, NORM_MINMAX);
-    Mat dst;
-
-
-    //Mat render = croppedImage.clone();
-
-    auto kernel = getStructuringElement(MORPH_RECT, Size(3, 3));
-
-    //dilate(image, kernel, 2);
-    //erode(image, kernel, 3);
-
-    //morphologyEx(croppedImage, croppedImage, MORPH_OPEN, getStructuringElement(MORPH_ELLIPSE, Size(25, 25)));
-    Mat imagec;
-    cvtColor(image, imagec, COLOR_GRAY2BGR);
-    */
-
-    
-
-
-    //sleep(2u);
-    //std::thread Detectface(detectface, &image ,rect);
-    //sleep(2u);
-    /*
-    std::thread detectEyeLeft(detectEye, &image, rect+1);
-    sleep(1u);
-    std::thread detectEyeRight(detectEye, &image, rect+0);
-    sleep(1u);
-    */
-    /*
-    //Mat frame = imread("media/circles.png");
-    //cv::namedWindow("frame", WINDOW_AUTOSIZE);
-
-    cv::createTrackbar("threshold", "frame", &sliderPos, 255);
-    cv::createTrackbar("alpha", "frame", &alpha, 100);
-    cv::createTrackbar("beta", "frame", &betaa, 200);
-
-}
-*/
