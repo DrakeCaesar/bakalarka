@@ -31,8 +31,8 @@ std::queue<Mat> buffer;
 frontal_face_detector detector = get_frontal_face_detector();
 shape_predictor pose_model, eyes_model;
 image_window win;
-//image_window eyeL;
-//image_window eyeR;
+image_window eyeL;
+image_window eyeR;
 image_window win1;
 
 
@@ -50,11 +50,11 @@ int max(int x, int y) {
 
 int detectEyes(cv::Mat * image, cv::Rect rect[])
 {
-    (*image) = imread("face.jpeg");
+    //(*image) = imread("face.jpeg");
     bool debug = true;
     cv::Mat resize, flip, grey, test, transpose;
     cv::cvtColor(* image, grey, COLOR_BGR2GRAY);
-    cv::resize(grey, resize, cv::Size(grey.cols/2,grey.rows/2));
+    cv::resize(grey, resize, cv::Size(grey.cols/8,grey.rows/8));
     //cv::transpose(resize, transpose);
     //cv::flip(transpose, flip, +1);
     dlib::array2d<unsigned char> cimg, cimg1;
@@ -124,12 +124,12 @@ int detectface(cv::Mat * image, cv::Rect rect[])
             }
             rect[j] = cv::Rect(x1, y1 - .5*(y2 - y1), x2 - x1, 2*(y2 - y1));
             if (debug) {
-                cv::rectangle(test, rect[j], cv::Scalar(0, 255, 0));
+                //cv::rectangle(test, rect[j], cv::Scalar(0, 255, 0));
             }
         }
         if (debug) {
             win.clear_overlay();
-            //win.add_overlay(render_face_detections(shapes));
+            win.add_overlay(render_face_detections(shapes));
         }
     }
     if (debug) {
@@ -184,18 +184,6 @@ void detectEye(cv::Mat * image, cv::Rect * rect, image_window * window){
 
 }
 
-cv::Mat thresh(cv::Mat * image, int rmin, int rmax) {
-    cv::Mat I = (*image).clone();
-    int scale = 1;
-    rmin = rmin * scale;
-    rmax = rmax * scale;
-    cv::resize(I, I, cv::Size((*image).cols * scale, (*image).rows * scale));
-    return I;
-}
-int random(int top) {
-    return (std::rand() % top - top)*2;
-}
-
 int totalFrames = 0;
 
 void GrabThread(VideoCapture *cap)
@@ -236,18 +224,19 @@ void GrabThread(VideoCapture *cap)
 }
 int duration = 0;
 int duration1 = 0;
-void ProcessFrame(Mat &src,int bufSize)
+void ProcessFrame(Mat *src,int *bufSize)
 {
-    cv::transpose(src,src);
+    cv::transpose(*src,*src);
     //src = imread("face.jpeg");
     //imshow("Image main", src);
     Rect eyes[2];
     //src = imread("face.jpeg");
-    if(bufSize > 8 ) return;
-    if(src.empty()) return;
-    int faces = detectEyes(const_cast<const decltype(&src)>(&src),eyes);
-    //if (faces)
-    //detectEye( &src, eyes+1, &eyeL);
+    if(*bufSize > 8 ) return;
+    if((*src).empty()) return;
+    int faces = detectface(const_cast<const decltype(src)>(src),eyes);
+    if (faces) {
+        detectEye(src, eyes + 1, &eyeL);
+    }
 
 /*
     for (int i = 0; i < faces; i++ ){
@@ -270,8 +259,292 @@ void framerate(std::string msg)
     }
     std::cout << "task1 says: " << msg;
 }
-
 int main() {
+
+    //Draw axis
+    Mat Eye_Waveform = Mat::zeros(900, 900, CV_8UC3); // Waveform image used to record blinks
+    Point p1 = Point(10, 0);
+    Point p2 = Point(10, 900);
+    Point p3 = Point(0, 890);
+    Point p4 = Point(900, 890);
+    Scalar line_color = Scalar(255, 255, 255);
+    cv::line(Eye_Waveform, p1, p2, line_color, 1, LINE_AA);
+    cv::line(Eye_Waveform, p3, p4, line_color, 1, LINE_AA);
+
+
+
+    //Store the coordinates of the last point of the eye
+    int eye_previous_x = 10; //The abscissa of the origin
+    int eye_previous_y = 890; //The ordinate of the origin
+    int eye_now_x = 1;
+    int eye_now_y = 1;
+
+
+    //Store the number of blinks
+    unsigned int count_blink = 0; //Number of blinks
+
+
+    //Each blink EAR has to go through the process from greater than 0.2-less than 0.2-greater than 0.2
+    float blink_EAR_before =0.0; // before blinking
+    float blink_EAR_now =0.2; //In blinking
+    float blink_EAR_after = 0.0; //After blinking
+
+
+    try {
+
+        const std::string videoStreamAddress = "VID_20201119_195914.mp4";
+        VideoCapture cap(videoStreamAddress);
+        //VideoCapture cap(0);
+        if (!cap.isOpened()) {//Open the camera
+            printf("Unable to connect a camera");
+            return 1;
+        }
+        frontal_face_detector detector = get_frontal_face_detector();
+
+        shape_predictor pos_model;
+
+        deserialize("shape_predictor_68_face_landmarks.dat") >> pos_model;
+        Mat data[1238];
+        for  (int i=0; i < 1238; i++){
+            //char filename[32];
+            //snprintf(filename, sizeof(filename), "wink/img-%d.png",i+1);
+            //data[i] = imread(filename);
+            cap >> data[i];
+            //cout << "loaded image " << string(filename)  << endl;
+            if (i%100 == 0){
+                cout << "loaded image " << i << endl;
+            }
+        }
+
+        for  (int i=1; i <= 1238; i++){
+            if (waitKey(30) == 27) {
+                break;
+            }
+
+            Mat temp = data[i];
+            //cap >> temp;
+            cv::resize(temp,temp,cv::Size(temp.cols/2,temp.rows/2));
+            //cv::transpose(temp, temp);
+            //cv::imshow("video",temp);
+            //cv::waitKey(0);
+            //Convert the image into the form of BGR in dlib
+            cv_image<bgr_pixel> cimg(temp);
+            //win1.set_image(cimg);
+            std::vector<dlib::rectangle> faces = detector(cimg);
+            std::vector<full_object_detection> shapes;
+            unsigned int faceNumber = faces.size(); //Get the number of vectors in the container, that is, the number of faces
+            for (unsigned int i = 0; i < faceNumber; i++) {
+                shapes.push_back(pos_model(cimg, faces[i]));
+            }
+            if (!shapes.empty()) {
+                int faceNumber = shapes.size();
+                for (int j = 0; j < faceNumber; j++)
+                {
+                    for (int i = 0; i < 68; i++)
+                    {
+                        //Points used to draw eigenvalues
+                        cv::circle(temp, cvPoint(shapes[j].part(i).x(), shapes[j].part(i).y()), 1, cv::Scalar(0, 0, 255), -1);
+                        //Parameter description Image center line width color line type
+                        //Display number
+                        //cv::putText(temp, to_string(i), cvPoint(shapes[0].part(i).x(), shapes[0].part(i).y()), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 255));
+
+                    }
+                }
+
+                //Left eye
+
+                //The coordinates of point 36
+                unsigned int x_36 = shapes[0].part(36).x();
+                unsigned int y_36 = shapes[0].part(36).y();
+
+                //The coordinates of point 37
+                unsigned int x_37 = shapes[0].part(37).x();
+                unsigned int y_37 = shapes[0].part(37).y();
+
+                //The coordinates of point 38
+                unsigned int x_38 = shapes[0].part(38).x();
+                unsigned int y_38 = shapes[0].part(38).y();
+
+                //The coordinates of point 39
+                unsigned int x_39 = shapes[0].part(39).x();
+                unsigned int y_39 = shapes[0].part(39).y();
+
+                //The coordinates of point 40
+                unsigned int x_40 = shapes[0].part(40).x();
+                unsigned int y_40 = shapes[0].part(40).y();
+
+                //The coordinates of point 41
+                unsigned int x_41 = shapes[0].part(41).x();
+                unsigned int y_41 = shapes[0].part(41).y();
+
+
+
+                int height_left_eye1 = y_41-y_37; //Longitudinal distance from 37 to 41
+                //cout << "Left Eye Height 1\t" << height_left_eye1 << endl;
+                int height_left_eye2 = y_40-y_38; //Longitudinal distance from 38 to 40
+                //cout << "Left Eye Height 2\t" << height_left_eye2 << endl;
+                float height_left_eye = (height_left_eye1 + height_left_eye2) / 2; //up and down distance of eyes
+                //cout << "Left Eye Height\t" << height_left_eye << endl;
+                int length_left_eye = x_39 - x_36;
+                //cout << "Left Eye Length\t" << length_left_eye << endl;
+                if (height_left_eye == 0) //When the eyes are closed, the distance may be detected as 0 and the aspect ratio is wrong
+                    height_left_eye = 1;
+
+                float EAR_left_eye; //eye aspect ratio
+                EAR_left_eye = height_left_eye / length_left_eye;
+
+                //Right eye
+
+                //The coordinates of point 42
+                unsigned int x_42 = shapes[0].part(42).x();
+                unsigned int y_42 = shapes[0].part(42).y();
+
+                //The coordinates of point 37
+                unsigned int x_43 = shapes[0].part(43).x();
+                unsigned int y_43 = shapes[0].part(43).y();
+
+                //The coordinates of point 38
+                unsigned int x_44 = shapes[0].part(44).x();
+                unsigned int y_44 = shapes[0].part(44).y();
+
+                //The coordinates of point 39
+                unsigned int x_45 = shapes[0].part(45).x();
+                unsigned int y_45 = shapes[0].part(45).y();
+
+                //The coordinates of point 40
+                unsigned int x_46 = shapes[0].part(46).x();
+                unsigned int y_46 = shapes[0].part(46).y();
+
+                //The coordinates of point 41
+                unsigned int x_47 = shapes[0].part(47).x();
+                unsigned int y_47 = shapes[0].part(47).y();
+
+                unsigned int height_right_eye1 = y_47-y_43; //Longitudinal distance from 37 to 41
+                unsigned int height_right_eye2 = y_46-y_44; //Longitudinal distance from 38 to 40
+                float height_right_eye = (height_right_eye1 + height_right_eye2) / 2; //up and down distance of eyes
+                if (height_right_eye == 0) //When the eyes are closed, the distance may be detected as 0 and the aspect ratio is wrong
+                    height_right_eye = 1;
+
+                unsigned int length_right_eye = x_45 - x_42;
+
+                float EAR_right_eye; //Aspect ratio of eyes
+                EAR_right_eye = height_right_eye / length_right_eye;
+
+                //Take the average aspect ratio of the two eyes as the aspect ratio of the eyes
+                float EAR_eyes = (EAR_left_eye + EAR_right_eye) / 2;
+
+                //cout << "The aspect ratio of the eyes is" << EAR_eyes << endl;
+
+                //Draw the waveform of the eye
+                eye_now_x = eye_now_x + 1; // abscissa (one point for every 10 images)
+                eye_now_y = 900-(EAR_eyes * 900 ); //Vertical coordinate
+                Point poi1 = Point(eye_previous_x, eye_previous_y); //previous point
+                Point poi2 = Point(eye_now_x, eye_now_y); //Current point
+                Scalar eyes_color = Scalar(0, 255, 0);
+                cv::line(Eye_Waveform, poi1, poi2, eyes_color,1, LINE_AA); //Draw a line
+                eye_previous_x = eye_now_x;
+                eye_previous_y = eye_now_y;
+                namedWindow("Blink waveform figure", WINDOW_AUTOSIZE);
+
+                //Count the number of blinks
+                if (blink_EAR_before < EAR_eyes) {
+                    blink_EAR_before = EAR_eyes;
+                }
+                if (blink_EAR_now > EAR_eyes) {
+                    blink_EAR_now = EAR_eyes;
+                }
+                if (blink_EAR_after < EAR_eyes) {
+                    blink_EAR_after = EAR_eyes;
+                }
+                if (blink_EAR_before > 0.2 && blink_EAR_now <= 0.2 && blink_EAR_after > 0.2) {
+                    count_blink = count_blink + 1;
+                    blink_EAR_before = 0.0;
+                    blink_EAR_now = 0.2;
+                    blink_EAR_after = 0.0;
+                }
+
+                //Display height_left_eye, length_left_eye and ERA_left_eye
+
+                //Convert hight_left_eye from float type to string type
+                char count_blink_text[30];
+
+                _gcvt_s(count_blink_text, count_blink, 10); //Convert hight_left_eye from float type to string type
+
+                putText(temp, count_blink_text, Point(10, 100), FONT_HERSHEY_COMPLEX, 1.0, Scalar(0, 0, 255), 1, LINE_AA);
+
+
+            }
+
+            //Display it all on the screen display pictures of each frame
+            cv::imshow("Dlib tag", temp);
+            cv::imshow("Blink waveform figure", Eye_Waveform);
+
+
+            //Time for one minute (60 seconds)
+            clock_t start = clock();
+            clock_t finish = clock();
+            }
+
+    }
+    catch (serialization_error& e) {
+        cout << "You need dlib‘s default face landmarking file to run this example." << endl;
+        cout << endl << e.what() << endl;
+    }
+    catch (exception& e) {
+        cout << e.what() << endl;
+
+    }
+
+}
+
+int main3(){
+    deserialize("shape_predictor_68_face_landmarks.dat") >> pose_model;
+    deserialize("eye_predictor.dat") >> eyes_model;
+    Rect eyes[2];
+    float wink[4];
+    Mat src;
+    VideoCapture cap;
+    const std::string videoStreamAddress = "VID_20201023_163951.mp4";
+    cap.open(videoStreamAddress);
+    if (!cap.isOpened()) //check if we succeeded
+        return -1;
+
+    string faceDetectionStrings[2] = {"nebola","bola"};
+    stringstream output;
+
+    bool faceDetected = false;
+    for (int i = 0; ; i++){
+        cap >> src;
+        if(src.empty()){
+            ofstream myfile;
+            myfile.open ("output.txt");
+            myfile << output.str();
+            myfile.close();
+            break;
+        }
+        cv::transpose(src, src);
+        //src = imread("face.jpeg");
+        //imshow("Image main", src);
+        //waitKey(0);
+        //continue;
+        //src = imread("face.jpeg");
+
+
+        int faces = detectface(const_cast<const decltype(&src)>(&src),eyes);
+        if (faceDetected != bool(faces)){
+            faceDetected = bool(faces);
+            output << "v snímke " << i << " " << faceDetectionStrings[faces] << "detegovana tvar" << endl;
+        }
+
+        if (faces) {
+            detectEye(&src, eyes, &eyeR);
+            detectEye(&src, eyes + 1, &eyeL);
+        }
+
+    }
+}
+
+int main1() {
     deserialize("shape_predictor_68_face_landmarks.dat") >> pose_model;
     deserialize("eye_predictor.dat") >> eyes_model;
 
@@ -280,7 +553,7 @@ int main() {
 
     const std::string videoStreamAddress = "http://192.168.0.103:8080/video";
     //const std::string videoStreamAddress = "VID_20201023_163951.mp4";
-    cap.open(0);
+    cap.open(videoStreamAddress);
     if (!cap.isOpened()) //check if we succeeded
         return -1;
 
@@ -305,7 +578,9 @@ int main() {
 
         if (bufSize > 0)            //if a new frame is available
         {
-            ProcessFrame(frame, bufSize);    //process it
+            //std::thread processFrame(ProcessFrame, &frame, &bufSize);
+            //sleep(100);
+            ProcessFrame(&frame, &bufSize);    //process it
             bufSize--;
         }
 
@@ -323,7 +598,7 @@ int main() {
             while (!buffer.empty())    //flushing the buffer
             {
                 frame = buffer.front();
-                ProcessFrame(frame, bufSize);
+                ProcessFrame(&frame, &bufSize);
                 buffer.pop();
             }
             cout << "done"<<endl;
