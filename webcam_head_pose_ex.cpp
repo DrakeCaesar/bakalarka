@@ -20,6 +20,7 @@
 #pragma comment (lib, "Crypt32.lib")
 #pragma comment (lib, "advapi32.lib") 
 
+#define frames 1238 //1238
 using namespace dlib;
 using namespace cv;
 using namespace std;
@@ -259,6 +260,14 @@ void framerate(std::string msg)
     }
     std::cout << "task1 says: " << msg;
 }
+
+void processWithDlib(Mat * temp, std::vector<dlib::rectangle> * faces){
+    //
+    //cv::resize(*temp,*temp,cv::Size((*temp).cols,(*temp).rows));
+    cv_image<bgr_pixel> cimg(*temp);
+    *faces = detector(cimg);
+}
+
 int main() {
 
     //Draw axis
@@ -304,8 +313,8 @@ int main() {
         shape_predictor pos_model;
 
         deserialize("shape_predictor_68_face_landmarks.dat") >> pos_model;
-        Mat data[1238];
-        for  (int i=0; i < 1238; i++){
+        Mat data[frames];
+        for  (int i=0; i < frames; i++){
             //char filename[32];
             //snprintf(filename, sizeof(filename), "wink/img-%d.png",i+1);
             //data[i] = imread(filename);
@@ -315,26 +324,52 @@ int main() {
                 cout << "loaded image " << i << endl;
             }
         }
+        std::vector<dlib::rectangle> faces[frames];
+        /*
+        for (int j=0; j < frames; j = j+8) {
+            std::thread t[8];
+            for (int i = 0; i < 8; i++) {
+                t[i] = std::thread(processWithDlib, &(data[j+i]), &(faces[j+i]));
+                //if (j % 100 == 0) {
+                    cout << "launched thread " << j+i << endl;
+                //}
+            }
 
-        for  (int i=1; i <= 1238; i++){
+            for (int i = 0; i < 8; ++i) {
+                t[i].detach();
+                //if (j % 100 == 0) {
+                    cout << "joined thread " << j+i << endl;
+                //}
+            }
+        }
+         for (int j=0; j < frames; j++) {
+
+            cout << "processed " << j << endl;
+        }
+        */
+
+
+
+        for  (int k=0; k < frames; k++){
             if (waitKey(30) == 27) {
                 break;
             }
 
-            Mat temp = data[i];
+            Mat temp = data[k];
             //cap >> temp;
-            cv::resize(temp,temp,cv::Size(temp.cols/2,temp.rows/2));
+            //cv::resize(temp,temp,cv::Size(temp.cols/2,temp.rows/2));
             //cv::transpose(temp, temp);
             //cv::imshow("video",temp);
             //cv::waitKey(0);
             //Convert the image into the form of BGR in dlib
             cv_image<bgr_pixel> cimg(temp);
             //win1.set_image(cimg);
-            std::vector<dlib::rectangle> faces = detector(cimg);
+            //std::vector<dlib::rectangle> faces = detector(cimg);
+            processWithDlib( &(temp), &(faces[k]));
             std::vector<full_object_detection> shapes;
-            unsigned int faceNumber = faces.size(); //Get the number of vectors in the container, that is, the number of faces
+            unsigned int faceNumber = faces[k].size(); //Get the number of vectors in the container, that is, the number of faces
             for (unsigned int i = 0; i < faceNumber; i++) {
-                shapes.push_back(pos_model(cimg, faces[i]));
+                shapes.push_back(pos_model(cimg, faces[k][i]));
             }
             if (!shapes.empty()) {
                 int faceNumber = shapes.size();
@@ -458,6 +493,7 @@ int main() {
                 }
                 if (blink_EAR_before > 0.2 && blink_EAR_now <= 0.2 && blink_EAR_after > 0.2) {
                     count_blink = count_blink + 1;
+                    cout << " blink at " << k+1 << endl;
                     blink_EAR_before = 0.0;
                     blink_EAR_now = 0.2;
                     blink_EAR_after = 0.0;
