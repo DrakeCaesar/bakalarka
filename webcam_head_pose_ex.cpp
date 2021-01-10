@@ -227,17 +227,22 @@ int duration = 0;
 int duration1 = 0;
 void ProcessFrame(Mat *src,int *bufSize)
 {
-    cv::transpose(*src,*src);
-    //src = imread("face.jpeg");
-    //imshow("Image main", src);
+
+
+
+
+    //*src = imread("face.jpeg");
+    //imshow("Image main", *src);
     Rect eyes[2];
     //src = imread("face.jpeg");
     if(*bufSize > 8 ) return;
-    if((*src).empty()) return;
+    //Mat newMat;
+    //cv::transpose(*src,newMat);
+    //if((*src).empty()) return;
     int faces = detectface(const_cast<const decltype(src)>(src),eyes);
-    if (faces) {
-        detectEye(src, eyes + 1, &eyeL);
-    }
+    //if (faces) {
+    //    detectEye(src, eyes + 1, &eyeL);
+    //}
 
 /*
     for (int i = 0; i < faces; i++ ){
@@ -261,14 +266,16 @@ void framerate(std::string msg)
     std::cout << "task1 says: " << msg;
 }
 
-void processWithDlib(Mat * temp, std::vector<dlib::rectangle> * faces){
+void processWithDlib(Mat * temp, std::vector<dlib::rectangle> * faces, int index){
     //
     //cv::resize(*temp,*temp,cv::Size((*temp).cols,(*temp).rows));
     cv_image<bgr_pixel> cimg(*temp);
     *faces = detector(cimg);
+
 }
 
 int main() {
+    ofstream result ("compareResult.txt");
 
     //Draw axis
     Mat Eye_Waveform = Mat::zeros(900, 900, CV_8UC3); // Waveform image used to record blinks
@@ -301,7 +308,8 @@ int main() {
 
     try {
 
-        const std::string videoStreamAddress = "VID_20201119_195914.mp4";
+        //const std::string videoStreamAddress = "VID_20201119_195914.mp4";
+        const std::string videoStreamAddress = "VID_20201207_235401.mp4";
         VideoCapture cap(videoStreamAddress);
         //VideoCapture cap(0);
         if (!cap.isOpened()) {//Open the camera
@@ -349,7 +357,7 @@ int main() {
         */
 
 
-
+        bool faceDetected = false;
         for  (int k=0; k < frames; k++){
             if (waitKey(30) == 27) {
                 break;
@@ -365,24 +373,88 @@ int main() {
             cv_image<bgr_pixel> cimg(temp);
             //win1.set_image(cimg);
             //std::vector<dlib::rectangle> faces = detector(cimg);
-            processWithDlib( &(temp), &(faces[k]));
+            bool load = false;
             std::vector<full_object_detection> shapes;
-            unsigned int faceNumber = faces[k].size(); //Get the number of vectors in the container, that is, the number of faces
-            for (unsigned int i = 0; i < faceNumber; i++) {
-                shapes.push_back(pos_model(cimg, faces[k][i]));
+            if (load == true){
+                char fileName[64];
+                stringstream fileNameStringStream;
+                fileNameStringStream << "facialData/" << k << ".0.txt";
+                ifstream myfile (fileNameStringStream.str());
+                string line;
+
+                for (int i = 0; i < 68; i++){
+                    std::getline(myfile, line);
+                    std::stringstream buffer(line);
+                    int tempx, tempy;
+                    buffer >> tempx >> tempy;
+                    full_object_detection tempShape;
+                    tempShape.part(i).x() = tempx;
+                    tempShape.part(i).y() = tempy;
+                    shapes[0].part(i).x() = tempx;
+                    shapes[0].part(i).y() = tempy;
+
+                }
+
+
+            }
+            if (load == false) {
+                processWithDlib(&(temp), &(faces[k]), k);
+                unsigned int faceNumber = faces[k].size(); //Get the number of vectors in the container, that is, the number of faces
+                for (unsigned int i = 0; i < faceNumber; i++) {
+                    shapes.push_back(pos_model(cimg, faces[k][i]));
+                }
             }
             if (!shapes.empty()) {
+                if (faceDetected == false) {
+                    cout << "Face detected at: " << k << endl;
+                    faceDetected = true;
+                }
+            }
+            else{
+                if (faceDetected == true) {
+                    cout << "Face not detected at: " << k << endl;
+                    faceDetected = false;
+                }
+            }
+
+
+            if (!shapes.empty()) {
+
+                if (faceDetected == false){
+                    cout << "Face detected at: " << k << endl;
+                    faceDetected = true;
+                }
+                //if (false){
+
                 int faceNumber = shapes.size();
                 for (int j = 0; j < faceNumber; j++)
                 {
+                    ofstream myfile;
+                    if (load == false) {
+                        char fileName[64];
+                        stringstream fileNameStringStream;
+                        fileNameStringStream << "facialData/" << k << "." << j << ".txt";
+                        //cout << fileNameStringStream.str() << endl;
+                        myfile.open(fileNameStringStream.str(), ios::out);
+                    }
+
                     for (int i = 0; i < 68; i++)
                     {
                         //Points used to draw eigenvalues
-                        cv::circle(temp, cvPoint(shapes[j].part(i).x(), shapes[j].part(i).y()), 1, cv::Scalar(0, 0, 255), -1);
+                        if (load == false) {
+                            cv::circle(temp, cvPoint(shapes[j].part(i).x(), shapes[j].part(i).y()), 1,
+                                       cv::Scalar(0, 0, 255), -1);
+                            if (load == false) {
+                                myfile << shapes[j].part(i).x() << " " << shapes[j].part(i).y() << endl;
+                            }
+                        }
                         //Parameter description Image center line width color line type
                         //Display number
                         //cv::putText(temp, to_string(i), cvPoint(shapes[0].part(i).x(), shapes[0].part(i).y()), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 255));
 
+                    }
+                    if (load == false) {
+                        myfile.close();
                     }
                 }
 
@@ -493,7 +565,37 @@ int main() {
                 }
                 if (blink_EAR_before > 0.2 && blink_EAR_now <= 0.2 && blink_EAR_after > 0.2) {
                     count_blink = count_blink + 1;
-                    cout << " blink at " << k+1 << endl;
+                    cout << " blink at " << k << endl;
+                    string line;
+                    std::stringstream lineSteam;
+                    ifstream myfile ("compareValues.txt");
+                    if (myfile.is_open())
+                    {
+                        int closestMiddle = 10000;
+                        int closestLeft = 0;
+                        int closestRight = 0;
+                        while ( getline (myfile,line) )
+                        {
+
+                            int left, right;
+                            lineSteam.str(line);
+                            lineSteam >> left >> right;
+                            //cout << left << " " << right << endl;
+                            int middle = (left + right) / 2;
+                            if ( abs(k - middle) <  abs(k - closestMiddle)){
+                                closestMiddle = middle;
+                                closestLeft = left;
+                                closestRight = right;
+                            }
+                        }
+                        result << "Blink at: " << k << " Closest marked blink: " << (closestLeft) << " " << (closestRight) << endl;
+                        cout << "Blink at: " << k << " Closest marked blink: " << (closestLeft) << " " << (closestRight) << endl;
+
+                        myfile.close();
+                    }
+
+                    else cout << "Unable to open file";
+
                     blink_EAR_before = 0.0;
                     blink_EAR_now = 0.2;
                     blink_EAR_after = 0.0;
@@ -510,6 +612,7 @@ int main() {
 
 
             }
+
 
             //Display it all on the screen display pictures of each frame
             cv::imshow("Dlib tag", temp);
@@ -587,7 +690,7 @@ int main1() {
     Mat frame;
     VideoCapture cap;
 
-    const std::string videoStreamAddress = "http://192.168.0.103:8080/video";
+    const std::string videoStreamAddress = "http://192.168.0.50:8080/video";
     //const std::string videoStreamAddress = "VID_20201023_163951.mp4";
     cap.open(videoStreamAddress);
     if (!cap.isOpened()) //check if we succeeded
