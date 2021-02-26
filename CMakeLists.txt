@@ -7,7 +7,7 @@ find_package( OpenCV CONFIG REQUIRED )
 find_package( dlib CONFIG REQUIRED )
 
 
-include_directories(.)
+#include_directories(.)
 set(USE_SSE2_INSTRUCTIONS ON CACHE BOOL "Use SSE2 instructions")
 set(USE_SSE4_INSTRUCTIONS ON CACHE BOOL "Use SSE4 instructions")
 set(USE_AVX_INSTRUCTIONS ON CACHE BOOL "Use AVX instructions")

@@ -309,29 +309,18 @@ int main() {
     try {
 
         //const std::string videoStreamAddress = "VID_20201119_195914.mp4";
-        const std::string videoStreamAddress = "VID_20201207_235401.mp4";
-        VideoCapture cap(videoStreamAddress);
+        //const std::string videoStreamAddress = "VID_20201207_235401.mp4";
+        //VideoCapture cap(videoStreamAddress);
         //VideoCapture cap(0);
-        if (!cap.isOpened()) {//Open the camera
-            printf("Unable to connect a camera");
-            return 1;
-        }
+//        if (!cap.isOpened()) {//Open the camera
+//            printf("Unable to connect a camera");
+//            return 1;
+//        }
         frontal_face_detector detector = get_frontal_face_detector();
 
         shape_predictor pos_model;
 
         deserialize("shape_predictor_68_face_landmarks.dat") >> pos_model;
-        Mat data[frames];
-        for  (int i=0; i < frames; i++){
-            //char filename[32];
-            //snprintf(filename, sizeof(filename), "wink/img-%d.png",i+1);
-            //data[i] = imread(filename);
-            cap >> data[i];
-            //cout << "loaded image " << string(filename)  << endl;
-            if (i%100 == 0){
-                cout << "loaded image " << i << endl;
-            }
-        }
         std::vector<dlib::rectangle> faces[frames];
         /*
         for (int j=0; j < frames; j = j+8) {
@@ -358,12 +347,16 @@ int main() {
 
 
         bool faceDetected = false;
-        for  (int k=0; k < frames; k++){
+        for  (int k=0; k < frames - 1; k++){
             if (waitKey(30) == 27) {
                 break;
             }
 
-            Mat temp = data[k];
+            char filename[64];
+            snprintf(filename, sizeof(filename), "wink_masked/img-%d_surgical.png",k+1);
+            //snprintf(filename, sizeof(filename), "wink/img-%d.png",k+1);
+            Mat temp = imread(filename);
+            //Mat temp = data[k];
             //cap >> temp;
             //cv::resize(temp,temp,cv::Size(temp.cols/2,temp.rows/2));
             //cv::transpose(temp, temp);
@@ -552,7 +545,7 @@ int main() {
                 eye_previous_x = eye_now_x;
                 eye_previous_y = eye_now_y;
                 namedWindow("Blink waveform figure", WINDOW_AUTOSIZE);
-
+                cout << "Frame: " << k+1 << " ratio: " << EAR_eyes << endl;
                 //Count the number of blinks
                 if (blink_EAR_before < EAR_eyes) {
                     blink_EAR_before = EAR_eyes;
@@ -563,38 +556,40 @@ int main() {
                 if (blink_EAR_after < EAR_eyes) {
                     blink_EAR_after = EAR_eyes;
                 }
+                //cout << "processing image " << k + 1 << endl;
                 if (blink_EAR_before > 0.2 && blink_EAR_now <= 0.2 && blink_EAR_after > 0.2) {
                     count_blink = count_blink + 1;
-                    cout << " blink at " << k << endl;
-                    string line;
-                    std::stringstream lineSteam;
-                    ifstream myfile ("compareValues.txt");
-                    if (myfile.is_open())
-                    {
-                        int closestMiddle = 10000;
-                        int closestLeft = 0;
-                        int closestRight = 0;
-                        while ( getline (myfile,line) )
-                        {
-
-                            int left, right;
-                            lineSteam.str(line);
-                            lineSteam >> left >> right;
-                            //cout << left << " " << right << endl;
-                            int middle = (left + right) / 2;
-                            if ( abs(k - middle) <  abs(k - closestMiddle)){
-                                closestMiddle = middle;
-                                closestLeft = left;
-                                closestRight = right;
-                            }
-                        }
-                        result << "Blink at: " << k << " Closest marked blink: " << (closestLeft) << " " << (closestRight) << endl;
-                        cout << "Blink at: " << k << " Closest marked blink: " << (closestLeft) << " " << (closestRight) << endl;
-
-                        myfile.close();
-                    }
-
-                    else cout << "Unable to open file";
+                    //cout << " blink at " << k + 1 << endl;
+                    cout  << k + 1 << endl;
+//                    string line;
+//                    std::stringstream lineSteam;
+//                    ifstream myfile ("compareValues.txt");
+//                    if (myfile.is_open())
+//                    {
+//                        int closestMiddle = 10000;
+//                        int closestLeft = 0;
+//                        int closestRight = 0;
+//                        while ( getline (myfile,line) )
+//                        {
+//
+//                            int left, right;
+//                            lineSteam.str(line);
+//                            lineSteam >> left >> right;
+//                            //cout << left << " " << right << endl;
+//                            int middle = (left + right) / 2;
+//                            if ( abs(k - middle) <  abs(k - closestMiddle)){
+//                                closestMiddle = middle;
+//                                closestLeft = left;
+//                                closestRight = right;
+//                            }
+//                        }
+//                        result << "Blink at: " << k << " Closest marked blink: " << (closestLeft) << " " << (closestRight) << endl;
+//                        cout << "Blink at: " << k << " Closest marked blink: " << (closestLeft) << " " << (closestRight) << endl;
+//
+//                        myfile.close();
+//                    }
+//
+//                    else cout << "Unable to open file";
 
                     blink_EAR_before = 0.0;
                     blink_EAR_now = 0.2;
