@@ -33,7 +33,12 @@
 
 cmake-build-debug
 cmake-build-release
+CMakeFiles
+data
+.cache
+
 
 .idea
 
 build
+CMakeCache.txt

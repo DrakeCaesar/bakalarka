@@ -1,11 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
 project(bakalarka)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_CXX_STANDARD 11)
 
+
 find_package( OpenCV CONFIG REQUIRED )
 find_package( dlib CONFIG REQUIRED )
-
 
 #include_directories(.)
 set(USE_SSE2_INSTRUCTIONS ON CACHE BOOL "Use SSE2 instructions")
@@ -35,7 +36,6 @@ add_executable(
 
 #target_link_libraries( bakalarka dlib ${OpenCV_LIBS} )
 #target_link_libraries(bakalarka PRIVATE dlib::dlib)
-target_link_libraries(bakalarka PRIVATE opencv_ml opencv_dnn opencv_dpm opencv_hdf)
-target_link_libraries(bakalarka PRIVATE dlib::dlib ${OpenCV_LIBS})
+target_link_libraries(bakalarka ${OpenCV_LIBS} dlib::dlib)
 
 
